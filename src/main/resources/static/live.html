@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>直播广场</title>
+<link rel="stylesheet" href="/css/live.css">
+<style>
+  .lv-hero {
+    background: linear-gradient(120deg, #2a0f18 0%, #16121c 45%, #0e1015 100%);
+    border-bottom: 1px solid rgba(255,255,255,.07);
+    padding: 26px 18px 22px;
+  }
+  .lv-hero .inner { max-width: 1280px; margin: 0 auto; display: flex; align-items: center; gap: 26px; flex-wrap: wrap; }
+  .lv-hero h2 { font-size: 25px; letter-spacing: 1px; }
+  .lv-hero h2 b { color: #ff4d3d; }
+  .lv-hero p { font-size: 13px; color: #9aa3b2; margin-top: 7px; }
+  .lv-hero .stat { display: flex; gap: 26px; margin-left: auto; }
+  .lv-hero .stat div { text-align: center; }
+  .lv-hero .stat .n { font-size: 22px; font-weight: 800; color: #fff; font-variant-numeric: tabular-nums; }
+  .lv-hero .stat .l { font-size: 11.5px; color: #8d97a8; margin-top: 2px; }
+  .lv-hero .stat .n.living { color: #ff4d3d; }
+
+  /* 手机上也能正常看/点：两列瀑布卡 + 明显的播放角标 */
+  /* 直播感：角标呼吸、封面微动 */
+  .play-badge {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
+    width: 46px; height: 46px; border-radius: 50%;
+    background: rgba(0,0,0,.45); border: 1.5px solid rgba(255,255,255,.75);
+    color: #fff; font-size: 17px; line-height: 44px; text-align: center;
+    backdrop-filter: blur(2px); pointer-events: none;
+    animation: badgePulse 1.8s ease-in-out infinite;
+  }
+  @keyframes badgePulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255,77,61,.55); }
+    55%      { box-shadow: 0 0 0 12px rgba(255,77,61,0); }
+  }
+  .lv-card .thumb img { transition: transform .6s ease; animation: thumbBreath 7s ease-in-out infinite alternate; }
+  .lv-card:hover .thumb img { transform: scale(1.07); animation-play-state: paused; }
+  /* 封面缓慢平移缩放：不点进来也像"直播画面"在动 */
+  @keyframes thumbBreath {
+    from { transform: scale(1) translate(0, 0); }
+    to   { transform: scale(1.12) translate(-1.5%, 1.2%); }
+  }
+  .lv-card:nth-child(2n) .thumb img { animation-delay: -2.4s; }
+  .lv-card:nth-child(3n) .thumb img { animation-delay: -4.2s; }
+  .badge-live { animation: liveBlink 1.2s ease-in-out infinite; }
+  @keyframes liveBlink { 50% { opacity: .55; } }
+  @media (max-width: 980px) {
+    .lv-hero { padding: 16px 12px 14px; }
+    .lv-hero .inner { gap: 12px; }
+    .lv-hero h2 { font-size: 19px; }
+    .lv-hero .stat { margin-left: 0; width: 100%; justify-content: space-between; gap: 8px; }
+    .lv-hero .stat .n { font-size: 18px; }
+    .lv-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .lv-card .info .t { font-size: 13px; }
+    .lv-top .nav a:nth-child(n+4) { display: none; }
+  }
+</style>
+</head>
+<body>
+<script>
+/* App 内 webview 通顶：把真实状态栏高度写进 CSS 变量 --sbh，
+   顶栏用它补偿 padding，避免被系统状态栏压住；普通浏览器无 plus，保持 0 不变 */
+(function () {
+  function apply(h) { if (h) document.documentElement.style.setProperty('--sbh', h + 'px'); }
+  try {
+    if (window.plus && plus.navigator && plus.navigator.getStatusbarHeight) {
+      apply(plus.navigator.getStatusbarHeight());
+    } else {
+      document.addEventListener('plusready', function () {
+        try { apply(plus.navigator.getStatusbarHeight()); } catch (e) {}
+      }, false);
+    }
+  } catch (e) {}
+})();
+</script>
+
+<div class="lv-top">
+  <span class="logo">直播</span>
+  <div class="nav">
+    <a href="/live.html" class="on">直播广场</a>
+    <a href="/video.html">短视频</a>
+    <a href="/seckill.html">限时秒杀</a>
+    <a href="/coupon.html">领券中心</a>
+    <a href="/index.html">商城首页</a>
+  </div>
+  <span class="spacer"></span>
+  <span class="who" id="who"></span>
+</div>
+
+<div class="lv-hero">
+  <div class="inner">
+    <div>
+      <h2>京东<b>直播</b> · 边看边买</h2>
+      <p>官方直播间 正品保障 · 主播讲解 · 直播间专享价 · 下单立减</p>
+    </div>
+    <div class="stat">
+      <div><div class="n living" id="s-living">-</div><div class="l">正在直播</div></div>
+      <div><div class="n" id="s-online">-</div><div class="l">实时在线</div></div>
+      <div><div class="n" id="s-viewer">-</div><div class="l">累计观看</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="lv-wrap" id="wrap">
+  <div class="lv-empty">正在加载直播间…</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/js/api.js"></script>
+<script>
+/* 带 ?id= 进来就直接进直播间（一个入口两种形态） */
+(function () {
+  const m = location.search.match(/[?&]id=(\d+)/);
+  if (m) location.replace('/live-room.html?id=' + m[1]);
+})();
+
+const fmt = {
+  n(v) {
+    const x = Number(v || 0);
+    if (x >= 100000000) return (x / 100000000).toFixed(1) + '亿';
+    if (x >= 10000) return (x / 10000).toFixed(1) + '万';
+    return x.toLocaleString('zh-CN');
+  },
+  cd(ms) {
+    if (ms <= 0) return '即将开始';
+    const s = Math.floor(ms / 1000);
+    const d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600),
+          m = Math.floor(s % 3600 / 60), ss = s % 60;
+    const p = n => String(n).padStart(2, '0');
+    return (d > 0 ? d + ' 天 ' : '') + p(h) + ':' + p(m) + ':' + p(ss);
+  },
+  pic(u) { return u || ''; }
+};
+
+const Square = {
+  data: null,
+  countdown: [],
+
+  async load() {
+    try {
+      Square.data = await API.liveList();
+    } catch (e) {
+      document.getElementById('wrap').innerHTML =
+        '<div class="lv-empty">加载失败：' + e.message + '</div>';
+      return;
+    }
+    Square.render();
+  },
+
+  card(r) {
+    const st = r.status;
+    const badge = st === 1
+      ? '<span class="badge-live">直播中</span>'
+      : (st === 0 ? '<span class="badge-soon">预告</span>' : '<span class="badge-end">回放</span>');
+    const viewTxt = st === 1 ? ('👁 ' + fmt.n(r.onlineCount) + ' 在线') : ('👁 ' + fmt.n(r.viewerCount));
+    const thumb = r.cover
+      ? '<img src="' + r.cover + '" alt="" onerror="this.style.display=\'none\'">'
+      : '<div class="ph">📺</div>';
+    const foot = st === 0
+      ? '<div class="soon-bar">🕐 ' + (r.startTime || '') + ' 开播 <span class="cd" data-cd="' + r.countdownMs + '"></span></div>'
+      : '<div class="foot"><span class="av">' + (r.anchorName || '主播').slice(0, 1) +
+        '</span><span>' + (r.anchorName || '主播') + '</span><span class="g">🛒 ' + r.goodsCount + ' 件商品</span></div>';
+    return `
+      <div class="lv-card" onclick="location.href='/live.html?id=${r.id}'">
+        <div class="thumb">
+          ${thumb}
+          <div class="mask"></div>
+          ${st === 1 ? '<div class="play-badge">▶</div>' : ''}
+          ${badge}
+          <div class="viewers">${viewTxt}</div>
+        </div>
+        <div class="info">
+          <div class="t">${r.title}</div>
+          ${foot}
+        </div>
+      </div>`;
+  },
+
+  render() {
+    const d = Square.data;
+    document.getElementById('s-living').textContent = d.livingCount || 0;
+    document.getElementById('s-online').textContent =
+      fmt.n(d.living.reduce((a, x) => a + Number(x.onlineCount || 0), 0));
+    document.getElementById('s-viewer').textContent = fmt.n(Number(d.viewerTotal || d.totalViewer || 0));
+
+    const u = API.user();
+    document.getElementById('who').textContent = u ? ('已登录：' + (u.nickname || u.account)) : '未登录';
+
+    let html = '';
+    if (d.living.length) {
+      html += `<div class="lv-sec-title"><span class="bar"></span>正在直播
+        <span class="cnt">${d.living.length} 个直播间</span></div>
+        <div class="lv-grid">${d.living.map(Square.card).join('')}</div>`;
+    } else {
+      html += `<div class="lv-sec-title"><span class="bar"></span>正在直播</div>
+        <div class="lv-empty">当前没有正在直播的场次，看看下面的预告吧</div>`;
+    }
+    if (d.upcoming.length) {
+      html += `<div class="lv-sec-title"><span class="bar"></span>即将开播
+        <span class="cnt">${d.upcoming.length} 场预告</span></div>
+        <div class="lv-grid">${d.upcoming.map(Square.card).join('')}</div>`;
+    }
+    if (d.ended.length) {
+      html += `<div class="lv-sec-title"><span class="bar"></span>精彩回放
+        <span class="cnt">${d.ended.length} 场</span></div>
+        <div class="lv-grid">${d.ended.map(Square.card).join('')}</div>`;
+    }
+    document.getElementById('wrap').innerHTML = html;
+    Square.tickCountdown();
+  },
+
+  tickCountdown() {
+    const els = [...document.querySelectorAll('[data-cd]')];
+    els.forEach(el => {
+      let ms = Number(el.dataset.cd) || 0;
+      el.textContent = ms > 0 ? '· ' + fmt.cd(ms) : '';
+      el.dataset.left = ms;
+    });
+  }
+};
+
+/* 倒计时每秒走一格；到 0 就刷新列表（可能有场次开播了） */
+let tick = 0;
+setInterval(() => {
+  let refresh = false;
+  document.querySelectorAll('[data-left]').forEach(el => {
+    let left = Number(el.dataset.left || 0) - 1000;
+    el.dataset.left = left;
+    el.textContent = left > 0 ? '· ' + fmt.cd(left) : '· 即将开始';
+    if (left <= 0) refresh = true;
+  });
+  if (refresh && ++tick < 3) { tick = 0; Square.load(); }
+}, 1000);
+
+Square.load();
+</script>
+</body>
+</html>

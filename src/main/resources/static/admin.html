@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>京东10143 · 管理后台</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; background: #f4f5f7; color: #222; }
+  a { color: inherit; }
+
+  /* 登录门 */
+  .gate {
+    position: fixed; inset: 0; background: linear-gradient(135deg, #e1251b, #8a1512);
+    display: flex; align-items: center; justify-content: center; z-index: 100;
+  }
+  .gate .box {
+    background: #fff; padding: 34px 30px; border-radius: 14px; width: 340px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.3); text-align: center;
+  }
+  .gate h2 { font-size: 20px; margin-bottom: 6px; }
+  .gate p { font-size: 13px; color: #888; margin-bottom: 20px; }
+  .gate input {
+    width: 100%; height: 42px; border: 1px solid #ddd; border-radius: 8px;
+    padding: 0 12px; font-size: 14px; margin-bottom: 12px; outline: none;
+  }
+  .gate input:focus { border-color: #e1251b; }
+  .gate button {
+    width: 100%; height: 44px; border: none; border-radius: 8px; background: #e1251b;
+    color: #fff; font-size: 15px; cursor: pointer;
+  }
+  .gate .err { color: #e1251b; font-size: 13px; min-height: 18px; margin-bottom: 6px; }
+
+  /* 主框架 */
+  .layout { display: none; min-height: 100vh; }
+  .layout.show { display: flex; }
+  aside {
+    width: 190px; background: #1f2937; color: #cbd5e1; padding: 18px 0; flex: none;
+    position: sticky; top: 0; height: 100vh;
+  }
+  aside .brand { padding: 0 18px 18px; font-size: 16px; font-weight: 700; color: #fff; }
+  aside .brand small { display: block; font-size: 11px; color: #94a3b8; font-weight: 400; margin-top: 4px; }
+  aside .mi {
+    padding: 11px 18px; font-size: 14px; cursor: pointer; border-left: 3px solid transparent;
+  }
+  aside .mi:hover { background: #111827; color: #fff; }
+  aside .mi.on { background: #111827; color: #fff; border-left-color: #e1251b; }
+  aside .foot { position: absolute; bottom: 16px; width: 100%; padding: 0 18px; font-size: 12px; color: #64748b; }
+  aside .foot a { color: #94a3b8; text-decoration: none; }
+
+  main { flex: 1; padding: 20px 24px 60px; overflow-x: hidden; }
+  .page-head { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+  .page-head h1 { font-size: 20px; }
+  .page-head .grow { flex: 1; }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 14px; margin-bottom: 20px; }
+  .stat {
+    background: #fff; border-radius: 12px; padding: 16px 18px; box-shadow: 0 2px 10px rgba(0,0,0,.05);
+  }
+  .stat .k { font-size: 13px; color: #888; }
+  .stat .v { font-size: 26px; font-weight: 700; color: #e1251b; margin-top: 6px; }
+
+  .panel { background: #fff; border-radius: 12px; padding: 16px 18px; box-shadow: 0 2px 10px rgba(0,0,0,.05); }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid #eef0f3; vertical-align: middle; }
+  th { color: #666; font-weight: 600; background: #fafbfc; }
+  td img.thumb { width: 46px; height: 46px; border-radius: 8px; object-fit: cover; }
+  .ell { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  button.btn, a.btn {
+    height: 32px; padding: 0 13px; border-radius: 7px; border: 1px solid #dcdfe6;
+    background: #fff; cursor: pointer; font-size: 13px; color: #333; text-decoration: none;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  button.btn:hover, a.btn:hover { border-color: #e1251b; color: #e1251b; }
+  button.primary { background: #e1251b; border-color: #e1251b; color: #fff; }
+  button.primary:hover { background: #c81e15; color: #fff; }
+  button.danger { color: #e1251b; border-color: #f3c1bf; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11.5px; }
+  .tag.on { background: #e8f5e9; color: #2e7d32; }
+  .tag.off { background: #fdecea; color: #c62828; }
+  .tag.adm { background: #fff3e0; color: #ef6c00; }
+
+  .searchbar { display: flex; gap: 8px; align-items: center; }
+  .searchbar input {
+    height: 34px; border: 1px solid #dcdfe6; border-radius: 7px; padding: 0 11px; font-size: 13.5px; outline: none;
+  }
+  .pager { display: flex; gap: 8px; align-items: center; margin-top: 14px; font-size: 13px; color: #666; }
+
+  /* 弹窗表单 */
+  .modal { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 120; display: none; align-items: center; justify-content: center; padding: 20px; }
+  .modal.show { display: flex; }
+  .modal .box { background: #fff; border-radius: 12px; width: 560px; max-width: 100%; max-height: 88vh; overflow-y: auto; }
+  .modal h3 { font-size: 16px; padding: 16px 20px; border-bottom: 1px solid #eef0f3; }
+  .modal .body { padding: 16px 20px; }
+  .row { margin-bottom: 12px; }
+  .row label { display: block; font-size: 13px; color: #555; margin-bottom: 5px; }
+  .row input, .row select, .row textarea {
+    width: 100%; border: 1px solid #dcdfe6; border-radius: 7px; padding: 8px 11px;
+    font-size: 13.5px; outline: none; font-family: inherit;
+  }
+  .row input:focus, .row textarea:focus, .row select:focus { border-color: #e1251b; }
+  .row.two { display: flex; gap: 12px; }
+  .row.two > div { flex: 1; }
+  .modal .acts { padding: 14px 20px; border-top: 1px solid #eef0f3; display: flex; justify-content: flex-end; gap: 10px; }
+
+  .toast {
+    position: fixed; left: 50%; top: 24px; transform: translateX(-50%);
+    background: #333; color: #fff; padding: 10px 20px; border-radius: 22px; font-size: 13.5px; z-index: 200;
+    opacity: 0; transition: opacity .2s; pointer-events: none;
+  }
+  .toast.show { opacity: .95; }
+  .empty { color: #999; padding: 26px 0; text-align: center; font-size: 13.5px; }
+</style>
+</head>
+<body>
+
+<!-- ================= 登录门（仅管理员） ================= -->
+<div class="gate" id="gate">
+  <div class="box">
+    <h2>京东10143 管理后台</h2>
+    <p>仅管理员账号可访问</p>
+    <div class="err" id="gateErr"></div>
+    <input id="acc" placeholder="管理员账号（admin）" value="admin">
+    <input id="pwd" type="password" placeholder="密码" onkeydown="if(event.key==='Enter')Admin.doLogin()">
+    <button onclick="Admin.doLogin()">登录后台</button>
+    <p style="margin-top:14px;font-size:12px;color:#aaa">演示提示：数据库里 role=admin 的账号才能进来</p>
+  </div>
+</div>
+
+<!-- ================= 主界面 ================= -->
+<div class="layout" id="layout">
+  <aside>
+    <div class="brand">京东10143 管理后台<small id="whoami"></small></div>
+    <div class="mi on" data-tab="stats" onclick="Admin.tab('stats')">📊 数据看板</div>
+    <div class="mi" data-tab="dashboard" onclick="Admin.tab('dashboard')">🖥️ 数据大屏</div>
+    <div class="mi" data-tab="goods" onclick="Admin.tab('goods')">📦 商品管理</div>
+    <div class="mi" data-tab="video" onclick="Admin.tab('video')">🎬 短视频管理</div>
+    <div class="mi" data-tab="comment" onclick="Admin.tab('comment')">💬 评论管理</div>
+    <div class="mi" data-tab="user" onclick="Admin.tab('user')">👤 用户管理</div>
+    <div class="mi" data-tab="order" onclick="Admin.tab('order')">🧾 订单查看</div>
+    <div class="foot">
+      <a href="/index.html">← 回到商城</a><br><br>
+      <a href="/video.html" target="_blank">短视频广场</a><br><br>
+      <a href="/live.html" target="_blank">直播广场</a><br><br>
+      <a href="/seckill.html" target="_blank">限时秒杀</a><br><br>
+      <a href="/coupon.html" target="_blank">领券中心</a><br><br>
+      <a href="/admin-dashboard.html" target="_blank">数据大屏（全屏）</a><br><br>
+      <a href="#" onclick="Admin.logout();return false">退出登录</a>
+    </div>
+  </aside>
+  <main id="main"></main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/js/api.js"></script>
+<script src="/js/admin.js"></script>
+<!-- AI 客服悬浮窗（后台也能直接找客服） -->
+<script src="/js/chat.js"></script>
+<script src="/js/chat-widget.js"></script>
+</body>
+</html>

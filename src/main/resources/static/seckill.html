@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>限时秒杀</title>
+<style>
+  :root{--jd:#e1251b;--jd2:#ff6a00;--ink:#1a1a1a;--sub:#7a7f87;--line:#eceef2;--bg:#f5f6f8}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink);padding-bottom:60px}
+  a{text-decoration:none;color:inherit}
+
+  .head{background:linear-gradient(135deg,#2b2f3a,#171a21);color:#fff;padding:calc(18px + var(--sbh, 0px)) 20px 30px;position:relative;overflow:hidden}
+  .head::after{content:"⚡";position:absolute;right:28px;top:-14px;font-size:130px;opacity:.07;transform:rotate(12deg)}
+  .head-in{max-width:1180px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;position:relative;z-index:1}
+  .logo{display:flex;align-items:center;gap:10px;font-size:20px;font-weight:800}
+  .logo b{background:linear-gradient(135deg,#ff6a3d,#e1251b);border-radius:8px;padding:3px 10px;font-size:16px}
+  .slogan{margin-top:8px;font-size:13px;color:#b9bec7}
+  .clock{text-align:right}
+  .clock .t{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:1px;color:#ffd08a}
+  .clock .l{font-size:12px;color:#9aa0a8;margin-top:2px}
+
+  .wrap{max-width:1180px;margin:-16px auto 0;padding:0 20px}
+  .panel{background:#fff;border-radius:16px;box-shadow:0 8px 28px rgba(24,28,40,.10);overflow:hidden}
+  .ptabs{display:flex;align-items:center;gap:4px;padding:10px;border-bottom:1px solid var(--line);overflow-x:auto}
+  .pt{flex:0 0 auto;padding:10px 20px;border-radius:10px;font-size:14px;color:var(--sub);cursor:pointer;font-weight:600;white-space:nowrap}
+  .pt.on{background:linear-gradient(135deg,#fff1ef,#ffe0d8);color:var(--jd)}
+  .pt .dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#34c759;margin-right:6px;vertical-align:middle;animation:blink 1.2s infinite}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+  .pt-r{margin-left:auto;padding-right:8px;font-size:12.5px;color:var(--sub);white-space:nowrap}
+
+  .secbar{padding:14px 16px 4px;display:flex;align-items:center;gap:10px;font-size:15px;font-weight:800}
+  .secbar .cd{font-size:12.5px;font-weight:600;color:var(--jd);background:#fff1ef;border-radius:8px;padding:4px 10px;font-variant-numeric:tabular-nums}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(258px,1fr));gap:14px;padding:14px 16px 20px}
+  .sk{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;transition:.2s;display:flex;flex-direction:column;position:relative}
+  .sk:hover{transform:translateY(-3px);box-shadow:0 12px 26px rgba(225,37,27,.14);border-color:#ffd0c8}
+  .sk-img{position:relative;padding-top:78%;background:#f7f8fa}
+  .sk-img img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;padding:10px}
+  .sk-badge{position:absolute;left:10px;top:10px;background:linear-gradient(135deg,#ff6a3d,#e1251b);color:#fff;font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:6px 6px 6px 0}
+  .sk-state{position:absolute;right:10px;top:10px;font-size:11.5px;padding:3px 9px;border-radius:10px;background:rgba(0,0,0,.55);color:#fff}
+  .sk-body{padding:11px 12px 13px;display:flex;flex-direction:column;flex:1}
+  .sk-name{font-size:13.5px;line-height:1.42;height:38px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  .sk-price{display:flex;align-items:baseline;gap:7px;margin-top:8px}
+  .sk-price .now{color:var(--jd);font-weight:800;font-size:20px}
+  .sk-price .now s{font-size:12px;font-weight:600;text-decoration:none}
+  .sk-price .old{color:#a8aeb6;font-size:12px;text-decoration:line-through}
+  .sk-price .off{margin-left:auto;font-size:11px;color:#fff;background:#ffb400;border-radius:4px;padding:2px 6px;font-weight:700}
+  .sk-prog{margin-top:10px;height:16px;border-radius:9px;background:#ffe6df;position:relative;overflow:hidden}
+  .sk-prog i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#ff8a5c,#e1251b);border-radius:9px;transition:width .5s}
+  .sk-prog span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10.5px;color:#fff;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.3)}
+  .sk-btn{margin-top:10px;border:0;border-radius:10px;padding:10px;font-size:13.5px;font-weight:800;color:#fff;cursor:pointer;
+    background:linear-gradient(135deg,#ff6a3d,#e1251b);transition:.16s}
+  .sk-btn:hover{filter:brightness(1.06)}
+  .sk-btn:active{transform:scale(.985)}
+  .sk-btn.gray{background:#eceef2;color:#a8aeb6;cursor:not-allowed}
+  .sk-btn.gray:hover{filter:none}
+  .sk.soldout .sk-img img{filter:grayscale(1);opacity:.55}
+
+  .tip{background:#fff;border-radius:16px;padding:40px 20px;text-align:center;color:var(--sub);font-size:14px;box-shadow:0 2px 12px rgba(24,28,40,.06);margin-top:18px}
+
+  /* 下单弹层 */
+  .mask{position:fixed;inset:0;background:rgba(16,18,24,.55);display:none;align-items:center;justify-content:center;z-index:200;padding:20px}
+  .mask.on{display:flex}
+  .dlg{background:#fff;border-radius:18px;width:400px;max-width:100%;overflow:hidden;animation:pop .2s ease}
+  @keyframes pop{from{transform:scale(.94);opacity:.4}to{transform:scale(1);opacity:1}}
+  .dlg-h{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--line);font-weight:800;font-size:16px}
+  .dlg-h span{cursor:pointer;color:#b3b8c0;font-size:20px;line-height:1}
+  .dlg-b{padding:16px 18px}
+  .dlg-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;font-size:14px;color:var(--sub)}
+  .dlg-row b{color:var(--ink);font-size:15px}
+  .dlg-row .p{color:var(--jd);font-size:20px;font-weight:800}
+  .dlg select,.dlg input{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:14px;margin-top:6px;outline:none;font-family:inherit}
+  .dlg select:focus,.dlg input:focus{border-color:#ffb3a8}
+  .qty{display:flex;align-items:center;gap:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;width:112px}
+  .qty button{width:34px;height:34px;border:0;background:#f7f8fa;font-size:17px;cursor:pointer;color:var(--sub)}
+  .qty input{width:44px;height:34px;border:0;text-align:center;font-size:14px;margin:0;border-radius:0;border-left:1px solid var(--line);border-right:1px solid var(--line)}
+  .dlg-f{padding:0 18px 18px}
+  .dlg-f button{width:100%;border:0;border-radius:12px;padding:13px;font-size:15px;font-weight:800;color:#fff;cursor:pointer;background:linear-gradient(135deg,#ff6a3d,#e1251b)}
+  .dlg-f button:disabled{background:#dfe2e8;cursor:not-allowed}
+
+  #toast{position:fixed;left:50%;bottom:90px;transform:translate(-50%,20px);background:rgba(20,22,28,.9);color:#fff;
+    padding:11px 20px;border-radius:24px;font-size:13.5px;opacity:0;pointer-events:none;transition:.24s;z-index:300;max-width:86vw;text-align:center}
+  #toast.on{opacity:1;transform:translate(-50%,0)}
+
+  .ticker{position:fixed;left:0;right:0;bottom:0;background:#1c1f26;color:#ffd08a;font-size:12.5px;padding:9px 16px;display:flex;align-items:center;gap:10px;justify-content:center;z-index:60}
+  .ticker b{color:#fff}
+</style>
+</head>
+<body>
+<script>
+/* App 内 webview 通顶：把真实状态栏高度写进 CSS 变量 --sbh，
+   顶栏用它补偿 padding，避免被系统状态栏压住；普通浏览器无 plus，保持 0 不变 */
+(function () {
+  function apply(h) { if (h) document.documentElement.style.setProperty('--sbh', h + 'px'); }
+  try {
+    if (window.plus && plus.navigator && plus.navigator.getStatusbarHeight) {
+      apply(plus.navigator.getStatusbarHeight());
+    } else {
+      document.addEventListener('plusready', function () {
+        try { apply(plus.navigator.getStatusbarHeight()); } catch (e) {}
+      }, false);
+    }
+  } catch (e) {}
+})();
+</script>
+
+<div class="head">
+  <div class="head-in">
+    <div>
+      <div class="logo"><b>JD</b> 限时秒杀</div>
+      <div class="slogan">整点开抢 ｜ 每人限购 ｜ 售完即止 ｜ 库存实时扣减，绝不超卖</div>
+    </div>
+    <div class="clock">
+      <div class="t" id="clock">--:--:--</div>
+      <div class="l" id="clockL">当前时间</div>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="panel">
+    <div class="ptabs" id="ptabs">
+      <div class="pt-r" id="ptabsR"></div>
+    </div>
+    <div id="view"><div class="tip">加载中…</div></div>
+  </div>
+</div>
+
+<!-- 下单弹层 -->
+<div class="mask" id="mask" onclick="if(event.target===this)Sk.close()">
+  <div class="dlg">
+    <div class="dlg-h"><span style="font-size:16px;color:var(--ink);cursor:default">确认抢购</span><span onclick="Sk.close()">×</span></div>
+    <div class="dlg-b" id="dlgBody"></div>
+    <div class="dlg-f"><button id="dlgBtn" onclick="Sk.submit()">立即抢购</button></div>
+  </div>
+</div>
+
+<div class="ticker" id="ticker">正在加载场次…</div>
+<div id="toast"></div>
+
+<script src="/js/api.js"></script>
+<script>
+const Sk = {
+  data: null,      // seckill list
+  tabKey: 'running',
+  cur: null,       // 当前下单的活动
+  qty: 1,
+  addrs: [],
+  offset: 0,       // 服务器时间 - 本地时间
+
+  toast(m) {
+    const t = document.getElementById('toast');
+    t.textContent = m; t.classList.add('on');
+    clearTimeout(this._t); this._t = setTimeout(() => t.classList.remove('on'), 2200);
+  },
+
+  async load() {
+    try {
+      this.data = await API.seckillList();
+      this.offset = (this.data.serverTime || Date.now()) - Date.now();
+    } catch (e) {
+      document.getElementById('view').innerHTML = `<div class="tip">秒杀活动加载失败：${e.message}<br>请确认 Java10143 后端已启动</div>`;
+      return;
+    }
+    // 默认 tab：有进行中就进行中，否则即将开始
+    if (!(this.data.running || []).length) {
+      this.tabKey = (this.data.upcoming || []).length ? 'upcoming' : 'ended';
+    }
+    this.renderTabs();
+    this.render();
+    this.updateTicker();
+  },
+
+  renderTabs() {
+    const d = this.data || {};
+    const tabs = [
+      { k: 'running', n: '⚡ 进行中', c: (d.running || []).length },
+      { k: 'upcoming', n: '⏰ 即将开始', c: (d.upcoming || []).length },
+      { k: 'ended', n: '已结束', c: (d.ended || []).length }
+    ];
+    const box = document.getElementById('ptabs');
+    box.querySelectorAll('.pt').forEach(e => e.remove());
+    const right = document.getElementById('ptabsR');
+    tabs.forEach(t => {
+      const el = document.createElement('div');
+      el.className = 'pt' + (this.tabKey === t.k ? ' on' : '');
+      el.innerHTML = (t.k === 'running' ? '<i class="dot"></i>' : '') + t.n + `<span style="opacity:.6;margin-left:4px">(${t.c})</span>`;
+      el.onclick = () => { this.tabKey = t.k; this.renderTabs(); this.render(); this.updateTicker(); };
+      box.insertBefore(el, right);
+    });
+    right.textContent = `共 ${(d.running || []).length + (d.upcoming || []).length} 场`;
+  },
+
+  render() {
+    const list = (this.data && this.data[this.tabKey]) || [];
+    const view = document.getElementById('view');
+    if (!list.length) {
+      view.innerHTML = `<div class="tip">这一栏暂时没有场次</div>`;
+      return;
+    }
+    const label = this.tabKey === 'running' ? '正在疯抢' : (this.tabKey === 'upcoming' ? '即将开场' : '已结束的场次');
+    let html = `<div class="secbar">${label}<span class="cd" id="secCd"></span></div><div class="grid">`;
+    list.forEach(s => { html += this.card(s); });
+    html += `</div>`;
+    view.innerHTML = html;
+  },
+
+  card(s) {
+    const soldOut = s.soldOut || s.stateCode === 2;
+    let btn, badge = '';
+    if (s.stateCode === 0) {
+      btn = `<button class="sk-btn gray">${this.fmtCd(s.remainMs)} 后开抢</button>`;
+      badge = `<span class="sk-state">即将开始</span>`;
+    } else if (s.stateCode === 2) {
+      btn = `<button class="sk-btn gray">已结束</button>`;
+      badge = `<span class="sk-state">已结束</span>`;
+    } else if (soldOut) {
+      btn = `<button class="sk-btn gray">已抢光</button>`;
+      badge = `<span class="sk-state">已抢光</span>`;
+    } else {
+      btn = `<button class="sk-btn" onclick="Sk.open(${s.id})">立即抢购</button>`;
+      badge = `<span class="sk-state" data-cd="${s.id}" data-end="${s.remainMs}" style="background:rgba(225,37,27,.92)">${this.fmtCd(s.remainMs)}</span>`;
+    }
+    return `
+      <div class="sk ${soldOut ? 'soldout' : ''}">
+        <div class="sk-img">
+          <img src="${s.picture}" alt="${s.name}" loading="lazy" onerror="this.style.opacity=.15">
+          <span class="sk-badge">${s.off || '秒杀'}</span>
+          ${badge}
+        </div>
+        <div class="sk-body">
+          <div class="sk-name">${s.name}</div>
+          <div class="sk-price">
+            <span class="now"><s>￥</s>${(+s.price).toFixed(0)}</span>
+            <span class="old">￥${(+s.originPrice).toFixed(0)}</span>
+            <span class="off">省${(+s.save).toFixed(0)}</span>
+          </div>
+          <div class="sk-prog">
+            <i style="width:${s.soldPercent}%"></i>
+            <span>已抢 ${s.soldPercent}% ｜ ${s.soldOut ? '已售罄' : '仅剩 ' + s.left + ' 件'}</span>
+          </div>
+          ${btn}
+        </div>
+      </div>`;
+  },
+
+  async open(id) {
+    if (!API.token()) { this.toast('请先登录再参与秒杀'); setTimeout(() => location.href = '/index.html#/pages/my/my', 900); return; }
+    let s;
+    try { s = await API.seckillDetail(id); } catch (e) { this.toast(e.message); return; }
+    if (s.stateCode !== 1) { this.toast(s.state === '已结束' ? '本场已结束' : '本场还没开始'); return; }
+    if (s.soldOut) { this.toast('已抢光'); return; }
+    this.cur = s; this.qty = 1;
+
+    try { this.addrs = await API.addressList(); } catch (e) { this.addrs = []; }
+    this.renderDlg();
+    document.getElementById('mask').classList.add('on');
+  },
+
+  renderDlg() {
+    const s = this.cur;
+    const addrOpt = this.addrs.length
+      ? this.addrs.map((a, i) => `<option value="${a.id}" ${i === 0 ? 'selected' : ''}>${a.receiver} ${a.contact} · ${a.fullLocation || ''}${a.address || ''}</option>`).join('')
+      : `<option value="">暂无收货地址，请先到「我的-地址」添加</option>`;
+    const total = ((+s.price) * this.qty).toFixed(2);
+    document.getElementById('dlgBody').innerHTML = `
+      <div class="dlg-row"><span>秒杀商品</span><b style="max-width:230px;text-align:right;font-size:13.5px">${s.name}</b></div>
+      <div class="dlg-row"><span>秒杀价</span><span class="p">￥${(+s.price).toFixed(2)} <s style="font-size:12px;color:#a8aeb6;text-decoration:line-through;font-weight:500">￥${(+s.originPrice).toFixed(2)}</s></span></div>
+      <div class="dlg-row"><span>购买数量（限购 ${s.limitPer}）</span>
+        <span class="qty">
+          <button onclick="Sk.setQty(-1)">−</button>
+          <input id="qtyIn" value="${this.qty}" readonly>
+          <button onclick="Sk.setQty(1)">+</button>
+        </span>
+      </div>
+      <div class="dlg-row" style="display:block">
+        <span>收货地址</span>
+        <select id="addrSel" ${this.addrs.length ? '' : 'disabled'}>${addrOpt}</select>
+      </div>
+      <div class="dlg-row" style="border-top:1px dashed var(--line);margin-top:8px;padding-top:12px">
+        <span>合计</span><b style="color:var(--jd);font-size:19px">￥${total}</b>
+      </div>`;
+    const btn = document.getElementById('dlgBtn');
+    btn.disabled = !this.addrs.length;
+    btn.textContent = this.addrs.length ? '立即抢购' : '请先添加收货地址';
+  },
+
+  setQty(d) {
+    const max = Math.min(this.cur.limitPer, this.cur.left);
+    let v = this.qty + d;
+    if (v < 1) v = 1;
+    if (v > max) { this.toast(`每人限购 ${this.cur.limitPer} 件，当前仅剩 ${this.cur.left} 件`); v = max; }
+    this.qty = v;
+    this.renderDlg();
+  },
+
+  async submit() {
+    const btn = document.getElementById('dlgBtn');
+    const addrId = document.getElementById('addrSel').value;
+    if (!addrId) { this.toast('请选择收货地址'); return; }
+    btn.disabled = true; btn.textContent = '抢购中…';
+    try {
+      const r = await API.seckillBuy({ seckillId: this.cur.id, count: this.qty, addressId: addrId });
+      this.toast('抢购成功！订单号 ' + r.orderId);
+      this.close();
+      await this.load();
+      setTimeout(() => { location.href = '/orderdetail.html?id=' + r.orderId; }, 900);
+    } catch (e) {
+      this.toast(e.message);
+      btn.disabled = false; btn.textContent = '立即抢购';
+      // 抢光了就刷一下列表，让进度条同步
+      if (/抢光|超卖|库存/.test(e.message)) this.load();
+    }
+  },
+
+  close() { document.getElementById('mask').classList.remove('on'); },
+
+  fmtCd(ms) {
+    const s = Math.max(0, Math.floor(ms / 1000));
+    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), ss = s % 60;
+    const p = n => String(n).padStart(2, '0');
+    return h > 0 ? `${p(h)}:${p(m)}:${p(ss)}` : `${p(m)}:${p(ss)}`;
+  },
+
+  updateTicker() {
+    const d = this.data || {};
+    const run = (d.running || [])[0];
+    const up = (d.upcoming || [])[0];
+    const tk = document.getElementById('ticker');
+    let txt = '';
+    if (run) {
+      txt = `<b>${run.name}</b> 秒杀中，还剩 <b>${run.left}</b> 件，${this.fmtCd(run.remainMs)} 后结束`;
+      const cd = document.getElementById('secCd');
+      if (cd) cd.textContent = '本场 ' + this.fmtCd(run.remainMs) + ' 后结束';
+    } else if (up) {
+      txt = `下一场 <b>${up.name}</b> 将在 <b>${this.fmtCd(up.remainMs)}</b> 后开始，先加购物车不会丢`;
+    } else {
+      txt = '今日场次已全部结束，明天 10:00 再见';
+    }
+    if (tk) tk.innerHTML = txt;
+    // 卡片角标倒计时
+    document.querySelectorAll('.sk-state[data-cd]').forEach(el => {
+      const id = +el.dataset.cd;
+      const s = (d.running || []).find(x => x.id === id);
+      if (s) el.textContent = this.fmtCd(s.remainMs);
+    });
+    const cp = document.getElementById('clock');
+    if (cp) {
+      const now = new Date(Date.now() + this.offset);
+      const p = n => String(n).padStart(2, '0');
+      cp.textContent = `${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}`;
+      document.getElementById('clockL').textContent = '服务器时间';
+    }
+  }
+};
+
+Sk.load();
+// 本地每秒走表，不重复请求接口；倒计时归零后重拉一次
+setInterval(() => {
+  if (!Sk.data) return;
+  const d = Sk.data;
+  (d.running || []).forEach(s => { s.remainMs = Math.max(0, s.remainMs - 1000); });
+  (d.upcoming || []).forEach(s => { s.remainMs = Math.max(0, s.remainMs - 1000); });
+  Sk.updateTicker();
+  const justStart = (d.upcoming || []).some(s => s.remainMs === 0);
+  const justEnd = (d.running || []).some(s => s.remainMs === 0);
+  if (justStart || justEnd) Sk.load();
+}, 1000);
+</script>
+</body>
+</html>

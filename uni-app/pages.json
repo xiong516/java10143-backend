@@ -1,0 +1,93 @@
+{
+  "pages": [
+    {
+      "path": "pages/index/index",
+      "style": {
+        "navigationBarTitleText": "京东10143",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/category/category",
+      "style": {
+        "navigationBarTitleText": "分类",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/detail/detail",
+      "style": {
+        "navigationStyle": "custom",
+        "app-plus": { "titleNView": false }
+      }
+    },
+    {
+      "path": "pages/cart/cart",
+      "style": {
+        "navigationBarTitleText": "购物车",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/my/my",
+      "style": {
+        "navigationBarTitleText": "我的京东",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/order/order",
+      "style": { "navigationBarTitleText": "订单详情" }
+    },
+    {
+      "path": "pages/video/video",
+      "style": {
+        "navigationBarTitleText": "短视频",
+        "navigationBarBackgroundColor": "#000000",
+        "navigationBarTextStyle": "white",
+        "backgroundColor": "#000000",
+        "disableScroll": true
+      }
+    },
+    {
+      "path": "pages/chat/chat",
+      "style": { "navigationBarTitleText": "AI 客服" }
+    },
+    {
+      "path": "pages/admin/admin",
+      "style": {
+        "navigationBarTitleText": "管理后台",
+        "navigationBarBackgroundColor": "#e1251b",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/webview/webview",
+      "style": {
+        "navigationBarTitleText": "京东10143",
+        "navigationBarBackgroundColor": "#e1251b",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom",
+        "app-plus": { "titleNView": false }
+      }
+    }
+  ],
+  "tabBar": {
+    "color": "#666666",
+    "selectedColor": "#e1251b",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      { "pagePath": "pages/index/index", "text": "首页" },
+      { "pagePath": "pages/category/category", "text": "分类" },
+      { "pagePath": "pages/cart/cart", "text": "购物车" },
+      { "pagePath": "pages/my/my", "text": "我的" }
+    ]
+  },
+  "globalStyle": {
+    "navigationBarTextStyle": "white",
+    "navigationBarTitleText": "京东10143",
+    "navigationBarBackgroundColor": "#e1251b",
+    "backgroundColor": "#f5f5f5"
+  }
+}

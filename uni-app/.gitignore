@@ -1,0 +1,8 @@
+# 忽略环境变量文件
+.env
+.env.local
+
+# 忽略依赖和打包产物
+node_modules/
+dist/
+unpackage/

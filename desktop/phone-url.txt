@@ -1,0 +1,9 @@
+Java10143 - phone access url
+generated 周六 2026/10/24 21:50
+
+  http://192.168.100.200:8080
+
+mall    http://192.168.100.200:8080/
+video   http://192.168.100.200:8080/video.html
+admin   http://192.168.100.200:8080/admin.html
+h5 dev  http://192.168.100.200:5173

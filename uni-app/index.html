@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>京东10143 · HBuilderX H5 版</title>
+  <!-- <link rel="stylesheet" href="<%= BASE_URL %>static/index.css"> -->
+</head>
+<body>
+  <noscript>请开启 JavaScript 后再访问</noscript>
+  <div id="app"></div>
+  <style>
+    /* PC 宽屏适配：页面限宽居中，像手机 App 一样显示，不再被拉伸。
+       注意：fixed 定位的是内层 .uni-page-head / .uni-tabbar 类，不能给文档流内的
+       自定义元素加 transform，否则整个页面会被平移出屏幕（分类页错乱的根因） */
+    @media screen and (min-width: 768px) {
+      html, body { background: #e9eaee !important; }
+      uni-app { max-width: 480px !important; margin: 0 auto !important; min-height: 100vh; background: #f7f7f7; box-shadow: 0 0 24px rgba(0,0,0,.18); }
+      /* fixed 定位的顶部导航和底部 tabBar 限宽居中（不用 transform，避免改变 fixed 包含块） */
+      .uni-page-head { max-width: 480px !important; left: 0 !important; right: 0 !important; margin: 0 auto !important; width: 480px !important; }
+      .uni-tabbar { max-width: 480px !important; left: 0 !important; right: 0 !important; margin: 0 auto !important; width: 480px !important; }
+    }
+  </style>
+  <script>
+    // 自动关闭 Vite 开发服务器的全屏报错遮罩（URI malformed 黑弹窗）。
+    // 报错依然打印在终端，只是不再挡住页面；生产构建不受影响。
+    (function () {
+      function kill() {
+        document.querySelectorAll('vite-error-overlay').forEach(function (el) { el.remove(); });
+      }
+      new MutationObserver(kill).observe(document.documentElement, { childList: true, subtree: true });
+      window.addEventListener('error', function () { setTimeout(kill, 0); });
+    })();
+  </script>
+  <script type="module" src="/main.js"></script>
+</body>
+</html>

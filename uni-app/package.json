@@ -1,0 +1,9 @@
+{
+  "name": "jd10143-uniapp",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev:h5": "uni",
+    "build:h5": "uni build"
+  }
+}

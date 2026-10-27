@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>领券中心</title>
+<style>
+  :root{
+    --jd:#e1251b; --jd2:#ff6a00; --ink:#1a1a1a; --sub:#7a7f87; --line:#eceef2;
+    --bg:#f5f6f8; --card:#fff; --gold:#c9a227;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink);padding-bottom:60px}
+  a{text-decoration:none;color:inherit}
+
+  /* 顶部 */
+  .head{background:linear-gradient(135deg,#e1251b 0%,#ff5a2c 55%,#ff8a3d 100%);color:#fff;padding:calc(18px + var(--sbh, 0px)) 20px 26px;position:relative;overflow:hidden}
+  .head::after{content:"";position:absolute;right:-40px;top:-60px;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,.12)}
+  .head::before{content:"";position:absolute;right:60px;bottom:-80px;width:140px;height:140px;border-radius:50%;background:rgba(255,255,255,.08)}
+  .head-in{max-width:1180px;margin:0 auto;position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+  .logo{display:flex;align-items:center;gap:10px;font-size:20px;font-weight:800;letter-spacing:.5px}
+  .logo b{background:#fff;color:var(--jd);border-radius:8px;padding:2px 9px;font-size:17px}
+  .slogan{margin-top:8px;font-size:13px;opacity:.92}
+  .hstats{display:flex;gap:22px;text-align:center}
+  .hstats div span{display:block;font-size:22px;font-weight:800;line-height:1.2}
+  .hstats div em{font-style:normal;font-size:12px;opacity:.85}
+
+  /* 吸顶 tab */
+  .tabs{max-width:1180px;margin:-14px auto 0;background:#fff;border-radius:14px;box-shadow:0 6px 24px rgba(24,28,40,.10);display:flex;align-items:center;gap:6px;padding:8px;position:sticky;top:0;z-index:30}
+  .tab{flex:0 0 auto;padding:9px 18px;border-radius:10px;font-size:14px;color:var(--sub);cursor:pointer;transition:.18s;font-weight:600}
+  .tab.on{background:linear-gradient(135deg,#fff1ef,#ffe3dd);color:var(--jd)}
+  .tab:hover{color:var(--jd)}
+  .tab .badge{display:inline-block;min-width:18px;height:18px;line-height:18px;padding:0 5px;background:var(--jd);color:#fff;border-radius:9px;font-size:11px;margin-left:5px;text-align:center}
+  .tab-right{margin-left:auto;display:flex;gap:8px;align-items:center;padding-right:6px}
+  .btn-mini{border:1px solid var(--line);background:#fff;color:var(--sub);border-radius:8px;padding:7px 13px;font-size:13px;cursor:pointer;transition:.15s}
+  .btn-mini:hover{border-color:#ffbdb6;color:var(--jd)}
+
+  .wrap{max-width:1180px;margin:0 auto;padding:20px 20px 0}
+  .sec-title{display:flex;align-items:center;gap:9px;font-size:17px;font-weight:800;margin:24px 0 14px}
+  .sec-title::before{content:"";width:4px;height:17px;border-radius:2px;background:linear-gradient(180deg,var(--jd),var(--jd2))}
+  .sec-title small{font-weight:400;font-size:12px;color:var(--sub);margin-left:2px}
+
+  /* 券卡片 */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px}
+  .cp{display:flex;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(24,28,40,.06);transition:.2s;position:relative}
+  .cp:hover{transform:translateY(-2px);box-shadow:0 10px 26px rgba(225,37,27,.14)}
+  .cp.dis{opacity:.62;filter:grayscale(.35)}
+  .cp-l{width:118px;flex:0 0 118px;background:linear-gradient(160deg,#ff5b4a,#e1251b);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative}
+  .cp-l::after{content:"";position:absolute;right:-1px;top:0;bottom:0;width:9px;
+    background:radial-gradient(circle at 0 50%,transparent 4px,#fff 4.5px) 0 0/9px 16px repeat-y}
+  .cp-l .face{font-size:14px;font-weight:700;line-height:1}
+  .cp-l .face b{font-size:34px;letter-spacing:-1px}
+  .cp-l .th{margin-top:7px;font-size:11.5px;opacity:.92;text-align:center;padding:0 6px;line-height:1.3}
+  .cp-l.gold{background:linear-gradient(160deg,#e0b23c,#b8860b)}
+  .cp-r{flex:1;padding:13px 14px 12px;display:flex;flex-direction:column;min-width:0}
+  .cp-name{font-size:14.5px;font-weight:700;line-height:1.35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cp-scope{font-size:12px;color:var(--sub);margin-top:4px}
+  .cp-bar{height:5px;background:#f1f2f5;border-radius:3px;margin-top:10px;overflow:hidden}
+  .cp-bar i{display:block;height:100%;border-radius:3px;background:linear-gradient(90deg,#ff9068,#e1251b)}
+  .cp-meta{display:flex;justify-content:space-between;align-items:center;margin-top:7px;font-size:11.5px;color:#9aa0a8}
+  .cp-act{align-self:flex-end;margin-top:8px}
+  .btn-take{border:0;border-radius:16px;padding:7px 20px;font-size:13px;font-weight:700;color:#fff;cursor:pointer;
+    background:linear-gradient(135deg,#ff6a3d,#e1251b);box-shadow:0 4px 12px rgba(225,37,27,.28);transition:.16s}
+  .btn-take:hover{filter:brightness(1.06)}
+  .btn-take:active{transform:scale(.97)}
+  .btn-take.gray{background:#e7e9ee;color:#9aa0a8;box-shadow:none;cursor:not-allowed}
+  .cp.used::before{content:"已领取";position:absolute;right:12px;top:12px;font-size:11px;color:#fff;background:#34c759;border-radius:10px;padding:2px 9px;z-index:2}
+
+  /* 空态 / 登录提示 */
+  .tip{background:#fff;border-radius:14px;padding:34px 20px;text-align:center;color:var(--sub);font-size:14px;box-shadow:0 2px 12px rgba(24,28,40,.06)}
+  .tip b{display:block;font-size:15px;color:var(--ink);margin-bottom:6px}
+  .tip button{margin-top:14px;border:0;border-radius:10px;padding:9px 22px;background:var(--jd);color:#fff;font-size:14px;cursor:pointer}
+
+  /* 我的券 tab */
+  .mine-tabs{display:flex;gap:8px;margin-bottom:14px}
+  .mt{padding:6px 16px;border-radius:16px;background:#fff;border:1px solid var(--line);font-size:13px;color:var(--sub);cursor:pointer}
+  .mt.on{background:#fff1ef;border-color:#ffc8c0;color:var(--jd);font-weight:700}
+
+  /* Toast */
+  #toast{position:fixed;left:50%;bottom:90px;transform:translate(-50%,20px);background:rgba(20,22,28,.9);color:#fff;
+    padding:11px 20px;border-radius:24px;font-size:13.5px;opacity:0;pointer-events:none;transition:.24s;z-index:99;max-width:86vw;text-align:center}
+  #toast.on{opacity:1;transform:translate(-50%,0)}
+
+  /* 悬浮购物车 */
+  .fab{position:fixed;right:26px;bottom:34px;width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,#ff6a3d,#e1251b);
+    color:#fff;display:flex;align-items:center;justify-content:center;font-size:23px;box-shadow:0 8px 22px rgba(225,37,27,.38);cursor:pointer;z-index:50}
+  .fab:hover{transform:translateY(-2px)}
+  @media (max-width:640px){
+    .grid{grid-template-columns:1fr}
+    .hstats{gap:14px}
+    .hstats div span{font-size:18px}
+    .cp-l{width:104px;flex-basis:104px}
+    .fab{right:16px;bottom:20px;width:48px;height:48px;font-size:20px}
+  }
+</style>
+</head>
+<body>
+<script>
+/* App 内 webview 通顶：把真实状态栏高度写进 CSS 变量 --sbh，
+   顶栏用它补偿 padding，避免被系统状态栏压住；普通浏览器无 plus，保持 0 不变 */
+(function () {
+  function apply(h) { if (h) document.documentElement.style.setProperty('--sbh', h + 'px'); }
+  try {
+    if (window.plus && plus.navigator && plus.navigator.getStatusbarHeight) {
+      apply(plus.navigator.getStatusbarHeight());
+    } else {
+      document.addEventListener('plusready', function () {
+        try { apply(plus.navigator.getStatusbarHeight()); } catch (e) {}
+      }, false);
+    }
+  } catch (e) {}
+})();
+</script>
+
+<div class="head">
+  <div class="head-in">
+    <div>
+      <div class="logo"><b>JD</b> 领券中心</div>
+      <div class="slogan">先领券再下单，最高立减 800 元 ｜ 每日 10 点 / 20 点更新</div>
+    </div>
+    <div class="hstats">
+      <div><span id="s1">-</span><em>可领券</em></div>
+      <div><span id="s2">-</span><em>我的券</em></div>
+      <div><span id="s3">-</span><em>今日已抢</em></div>
+    </div>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab on" data-t="center" onclick="Coupon.tab('center')">🎫 领券中心</div>
+  <div class="tab" data-t="mine" onclick="Coupon.tab('mine')">👛 我的券<span class="badge" id="badgeMine" style="display:none">0</span></div>
+  <div class="tab-right">
+    <button class="btn-mini" onclick="Coupon.go('/index.html')">🏠 商城首页</button>
+    <button class="btn-mini" onclick="Coupon.go('/seckill.html')">⚡ 限时秒杀</button>
+    <button class="btn-mini" id="loginBtn" onclick="Coupon.login()">登录</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <div id="view"></div>
+</div>
+
+<div class="fab" title="购物车" onclick="Coupon.go('/cart.html')">🛒</div>
+<div id="toast"></div>
+
+<script src="/js/api.js"></script>
+<script>
+const Coupon = {
+  data: null,
+  mineTab: 0,
+
+  toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('on');
+    clearTimeout(this._tt);
+    this._tt = setTimeout(() => t.classList.remove('on'), 2000);
+  },
+
+  go(url) { location.href = url; },
+
+  login() {
+    if (API.token()) {
+      if (confirm('已登录，是否退出？')) { API.logout(); location.reload(); }
+    } else {
+      location.href = '/index.html#/pages/my/my';
+    }
+  },
+
+  tab(name) {
+    document.querySelectorAll('.tab[data-t]').forEach(el => el.classList.toggle('on', el.dataset.t === name));
+    if (name === 'center') this.renderCenter();
+    else this.renderMine();
+  },
+
+  async load() {
+    const u = API.user();
+    const btn = document.getElementById('loginBtn');
+    btn.textContent = u ? (u.nickname || u.account || '我的') : '登录';
+    try {
+      this.data = await API.couponCenter();
+    } catch (e) {
+      document.getElementById('view').innerHTML =
+        `<div class="tip"><b>券信息加载失败</b>${e.message}<br>请确认 Java10143 后端已启动</div>`;
+      return;
+    }
+    document.getElementById('s1').textContent = this.data.availableCount;
+    document.getElementById('s2').textContent = this.data.mineCount;
+    let takenSum = 0;
+    (this.data.list || []).forEach(c => takenSum += c.takenCount);
+    document.getElementById('s3').textContent = takenSum;
+
+    const badge = document.getElementById('badgeMine');
+    if (this.data.mineCount > 0) { badge.style.display = 'inline-block'; badge.textContent = this.data.mineCount; }
+
+    this.renderCenter();
+  },
+
+  cpCard(c) {
+    const face = c.type === 2
+      ? `<div class="face"><b>${c.discount}</b> 折</div><div class="th">${c.threshold > 0 ? '满 ' + (+c.threshold) + ' 元可用' : '无门槛'}</div>`
+      : `<div class="face">¥ <b>${c.face}</b></div><div class="th">${c.threshold > 0 ? '满 ' + (+c.threshold) + ' 元可用' : '无门槛使用'}</div>`;
+
+    const scopeText = c.scope === 'category' ? '限品类使用' : '全品类通用';
+    const limitText = `每人限领 ${c.perLimit} 张`;
+
+    let btn;
+    if (!this.data.login) {
+      btn = `<button class="btn-take" onclick="Coupon.login()">登录领取</button>`;
+    } else if (c.expired) {
+      btn = `<button class="btn-take gray">已过期</button>`;
+    } else if (c.notStart) {
+      btn = `<button class="btn-take gray">未开始</button>`;
+    } else if (c.soldOut) {
+      btn = `<button class="btn-take gray">已抢光</button>`;
+    } else if (!c.canTake) {
+      btn = `<button class="btn-take gray">已领满</button>`;
+    } else {
+      btn = `<button class="btn-take" data-id="${c.id}" onclick="Coupon.take(this)">立即领取</button>`;
+    }
+
+    const remain = c.remainMs > 0 ? this.fmtRemain(c.remainMs) : '';
+
+    return `
+      <div class="cp ${c.canTake ? '' : 'dis'}">
+        <div class="cp-l ${c.type === 2 ? 'gold' : ''}">${face}</div>
+        <div class="cp-r">
+          <div class="cp-name" title="${c.name}">${c.name}</div>
+          <div class="cp-scope">${scopeText} · ${limitText}${remain ? ' · ' + remain : ''}</div>
+          <div class="cp-bar"><i style="width:${c.percent}%"></i></div>
+          <div class="cp-meta"><span>已抢 ${c.takenCount} / ${c.totalCount}</span><span>${c.percent}%</span></div>
+          <div class="cp-act">${btn}</div>
+        </div>
+      </div>`;
+  },
+
+  renderCenter() {
+    if (!this.data) return;
+    const list = this.data.list || [];
+    if (!list.length) {
+      document.getElementById('view').innerHTML = `<div class="tip"><b>暂时没有可领的券</b>请稍后再来看看</div>`;
+      return;
+    }
+    // 分两类：无门槛/大额 优先
+    const big = list.filter(c => c.type === 3 || +c.amount >= 100 || c.type === 2);
+    const small = list.filter(c => !(c.type === 3 || +c.amount >= 100 || c.type === 2));
+
+    let html = '';
+    if (big.length) html += `<div class="sec-title">精选好券 <small>先领券，再下单更划算</small></div><div class="grid">${big.map(c => this.cpCard(c)).join('')}</div>`;
+    if (small.length) html += `<div class="sec-title">更多优惠</div><div class="grid">${small.map(c => this.cpCard(c)).join('')}</div>`;
+    document.getElementById('view').innerHTML = html;
+  },
+
+  async renderMine() {
+    const view = document.getElementById('view');
+    if (!API.token()) {
+      view.innerHTML = `<div class="tip"><b>登录后可查看我的优惠券</b>领到的券会放在这里，下单时自动抵扣<button onclick="Coupon.login()">去登录</button></div>`;
+      return;
+    }
+    let list;
+    try {
+      list = await API.couponMine();
+    } catch (e) {
+      view.innerHTML = `<div class="tip"><b>加载失败</b>${e.message}</div>`;
+      return;
+    }
+    const tabs = [
+      { k: 0, n: '未使用' }, { k: 1, n: '已使用' }, { k: 2, n: '已过期' }, { k: -1, n: '全部' }
+    ];
+    let html = `<div class="mine-tabs">${tabs.map(t =>
+      `<div class="mt ${this.mineTab === t.k ? 'on' : ''}" onclick="Coupon.mineTab=${t.k};Coupon.renderMine()">${t.n}</div>`).join('')}</div>`;
+
+    const show = this.mineTab === -1 ? list : list.filter(c => c.ucStatus === this.mineTab);
+    if (!show.length) {
+      html += `<div class="tip"><b>这里还空着</b>去「领券中心」领几张券吧<button onclick="Coupon.tab('center')">去领券</button></div>`;
+    } else {
+      html += `<div class="grid">${show.map(c => {
+        const face = c.type === 2
+          ? `<div class="face"><b>${c.discount}</b> 折</div><div class="th">${c.threshold > 0 ? '满 ' + (+c.threshold) + ' 元' : '无门槛'}</div>`
+          : `<div class="face">¥ <b>${c.face}</b></div><div class="th">${c.threshold > 0 ? '满 ' + (+c.threshold) + ' 元' : '无门槛'}</div>`;
+        let btn;
+        if (c.ucStatus === 1) btn = `<button class="btn-take gray">已使用</button>`;
+        else if (c.expired || c.ucStatus === 2) btn = `<button class="btn-take gray">已过期</button>`;
+        else btn = `<button class="btn-take" onclick="Coupon.go('/index.html')">去使用</button>`;
+        return `<div class="cp ${c.usable ? '' : 'dis'}">
+          <div class="cp-l ${c.type === 2 ? 'gold' : ''}">${face}</div>
+          <div class="cp-r">
+            <div class="cp-name">${c.name}</div>
+            <div class="cp-scope">${c.tips}${c.remainMs > 0 ? ' · ' + Coupon.fmtRemain(c.remainMs) + '后过期' : ''}</div>
+            <div class="cp-meta" style="margin-top:auto"><span>领取于 ${(c.takeTime || '').slice(0, 16)}</span></div>
+            <div class="cp-act">${btn}</div>
+          </div>
+        </div>`;
+      }).join('')}</div>`;
+    }
+    view.innerHTML = html;
+  },
+
+  async take(btn) {
+    if (!API.token()) { this.login(); return; }
+    const id = btn.dataset.id;
+    btn.disabled = true;
+    btn.textContent = '领取中…';
+    try {
+      const r = await API.couponTake(id);
+      this.toast(r.msg || '领取成功');
+      await this.load();
+      // 领完停在我的券页方便用户确认
+      setTimeout(() => this.tab('mine'), 700);
+    } catch (e) {
+      this.toast(e.message);
+      btn.disabled = false;
+      btn.textContent = '立即领取';
+    }
+  },
+
+  fmtRemain(ms) {
+    const s = Math.max(0, Math.floor(ms / 1000));
+    const d = Math.floor(s / 86400);
+    const h = Math.floor((s % 86400) / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    if (d > 0) return `剩 ${d} 天`;
+    if (h > 0) return `剩 ${h} 小时 ${m} 分`;
+    return `剩 ${m} 分`;
+  }
+};
+
+Coupon.load();
+// 每 30 秒刷新剩余数量，券抢光了按钮自动变灰
+setInterval(() => { if (!document.hidden) Coupon.load(); }, 30000);
+</script>
+</body>
+</html>

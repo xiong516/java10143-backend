@@ -1,0 +1,42 @@
+# render.yaml —— Java10143 后端部署配置（脱敏版，不含任何真实密码/密钥）
+#
+# 隐私说明（重要）：
+#   本文件不写任何数据库密码、JWT 密钥。所有敏感值用 sync:false 标记，
+#   表示只在 Render 控制台手动填写，绝不进 Git / 镜像 / 代码。
+#   因为 src/main/resources/application.yml 已被 .gitignore 忽略，
+#   Render 从 Git 构建出的 jar 里也没有 application.yml，运行时完全靠下面的环境变量。
+#
+# 使用步骤见 deploy/部署指南.md
+
+services:
+  - type: web
+    name: java10143-backend
+    runtime: java
+    plan: free                      # 免费层（有内存限制，Java 偶尔偏紧，必要时升级 plan）
+    region: singapore               # 离国内近一点；也可选 oregon/frankfurt
+    branch: master                 # 当前本地分支为 master
+    buildCommand: ./mvnw clean package -DskipTests || mvn clean package -DskipTests
+    startCommand: java -jar target/Java10143.jar
+    healthCheckPath: /
+    envVars:
+      # ---- 端口 ----
+      - key: SERVER_PORT
+        value: "8089"
+      # ---- 数据库连接（完整 JDBC URL，含 TiDB Serverless 的 SSL 参数）----
+      - key: SPRING_DATASOURCE_DRIVER_CLASS_NAME
+        value: com.mysql.cj.jdbc.Driver
+      - key: SPRING_DATASOURCE_URL
+        sync: false                 # 控制台粘贴 TiDB 的完整 JDBC URL（含 sslMode=VERIFY_IDENTITY）
+      - key: SPRING_DATASOURCE_USERNAME
+        sync: false                 # TiDB 用户名
+      - key: SPRING_DATASOURCE_PASSWORD
+        sync: false                 # TiDB 密码（只在 Render 控制台，不进代码）
+      # ---- JWT 签名密钥（随机强密钥，openssl rand -hex 32 生成）----
+      - key: JAVA10143_JWT_SECRET
+        sync: false
+      # ---- 服务对外地址（部署后回填 Render 自动分配的域名）----
+      - key: JAVA10143_PUBLIC_URL
+        sync: false                 # 例：https://java10143-backend.onrender.com
+      # ---- JVM 内存（免费层约 512MB，给 Java 留够但不超额）----
+      - key: JAVA_OPTS
+        value: "-Xmx384m -XX:MaxMetaspaceSize=128m"

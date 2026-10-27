@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>京东10143 · 数据大屏</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #f4f5f7;
+    --card: #ffffff;
+    --line: #e8eaee;
+    --txt: #1f2430;
+    --sub: #7b8496;
+    --red: #e1251b;
+    --blue: #2f6fed;
+    --green: #14a37f;
+    --orange: #f5a524;
+    --purple: #8b5cf6;
+  }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    background: var(--bg); color: var(--txt); min-height: 100vh;
+  }
+  /* 顶部栏 */
+  header {
+    background: linear-gradient(90deg, #e1251b, #b81a13);
+    color: #fff; padding: 14px 22px; display: flex; align-items: center; gap: 14px;
+    flex-wrap: wrap; box-shadow: 0 2px 12px rgba(225,37,27,.25);
+    position: sticky; top: 0; z-index: 20;
+  }
+  header h1 { font-size: 19px; letter-spacing: .5px; }
+  header .sub { font-size: 12.5px; opacity: .85; }
+  header .grow { flex: 1; }
+  header .seg { display: flex; background: rgba(255,255,255,.16); border-radius: 999px; padding: 3px; }
+  header .seg button {
+    border: 0; background: transparent; color: #fff; font-size: 12.5px;
+    padding: 5px 13px; border-radius: 999px; cursor: pointer;
+  }
+  header .seg button.on { background: #fff; color: var(--red); font-weight: 700; }
+  header .btn {
+    border: 1px solid rgba(255,255,255,.5); background: transparent; color: #fff;
+    height: 30px; padding: 0 12px; border-radius: 8px; font-size: 12.5px; cursor: pointer;
+  }
+  header .btn:hover { background: rgba(255,255,255,.16); }
+
+  main { padding: 18px 22px 40px; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 14px; }
+  .kpi {
+    background: var(--card); border-radius: 14px; padding: 14px 16px;
+    box-shadow: 0 2px 12px rgba(20,26,45,.06); border: 1px solid var(--line);
+    position: relative; overflow: hidden;
+  }
+  .kpi::after {
+    content: ''; position: absolute; right: -18px; top: -18px; width: 56px; height: 56px;
+    border-radius: 50%; background: rgba(225,37,27,.07);
+  }
+  .kpi .k { font-size: 12.5px; color: var(--sub); }
+  .kpi .v { font-size: 25px; font-weight: 800; margin-top: 5px; letter-spacing: -.5px; }
+  .kpi .v small { font-size: 13px; font-weight: 600; margin-right: 2px; }
+  .kpi .t { font-size: 11.5px; color: var(--sub); margin-top: 3px; }
+  .kpi.red .v { color: var(--red); }
+  .kpi.blue .v { color: var(--blue); }
+  .kpi.green .v { color: var(--green); }
+  .kpi.orange .v { color: var(--orange); }
+  .kpi.purple .v { color: var(--purple); }
+
+  .grid { display: grid; gap: 14px; }
+  .row-2 { grid-template-columns: 1.55fr 1fr; }
+  .row-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .row-2b { grid-template-columns: 1fr 1.35fr; }
+  .row-2e { grid-template-columns: 1fr 1fr; }
+  @media (max-width: 1080px) {
+    .row-2, .row-3, .row-2b, .row-2e { grid-template-columns: 1fr; }
+  }
+  .card {
+    background: var(--card); border-radius: 14px; border: 1px solid var(--line);
+    box-shadow: 0 2px 12px rgba(20,26,45,.06); padding: 14px 16px 8px;
+  }
+  .card h3 {
+    font-size: 14px; margin-bottom: 6px; display: flex; align-items: center; gap: 7px;
+  }
+  .card h3 .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--red); flex: none; }
+  .card h3 .hint { font-size: 11.5px; color: var(--sub); font-weight: 400; margin-left: auto; }
+  .chart { width: 100%; height: 260px; }
+  .chart.tall { height: 300px; }
+  .chart.short { height: 210px; }
+  .chart.mini { height: 180px; }
+
+  /* 今日/近7天/本月 三个小卡 */
+  .periods { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 4px; }
+  .period {
+    background: #fafbfd; border: 1px solid var(--line); border-radius: 12px; padding: 11px 13px;
+  }
+  .period .lab { font-size: 12px; color: var(--sub); }
+  .period .amt { font-size: 19px; font-weight: 800; color: var(--red); margin: 3px 0; }
+  .period .meta { font-size: 11.5px; color: var(--sub); }
+
+  /* 内容电商闭环 strip */
+  .loop { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+  @media (max-width: 720px) { .loop { grid-template-columns: repeat(2, 1fr); } }
+  .loop .item {
+    background: #fafbfd; border: 1px solid var(--line); border-radius: 12px; padding: 12px;
+    text-align: center;
+  }
+  .loop .item .n { font-size: 19px; font-weight: 800; color: var(--blue); }
+  .loop .item .l { font-size: 12px; color: var(--sub); margin-top: 2px; }
+  .loop .item:first-child .n { color: var(--red); }
+  .loop.four { grid-template-columns: repeat(4, 1fr); }
+
+  /* 排行榜列表 */
+  .rank { padding-bottom: 6px; }
+  .rank .rw {
+    display: flex; align-items: center; gap: 9px; padding: 7px 2px;
+    border-bottom: 1px dashed #eef0f4; font-size: 12.5px;
+  }
+  .rank .rw:last-child { border-bottom: 0; }
+  .rank .no {
+    width: 19px; height: 19px; border-radius: 6px; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; background: #f0f2f6; color: var(--sub);
+  }
+  .rank .rw:nth-child(1) .no { background: var(--red); color: #fff; }
+  .rank .rw:nth-child(2) .no { background: #ff8a00; color: #fff; }
+  .rank .rw:nth-child(3) .no { background: #f5a524; color: #fff; }
+  .rank .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rank .nm i { font-style: normal; color: var(--sub); font-size: 11px; margin-left: 5px; }
+  .rank .amt { font-weight: 700; color: var(--red); white-space: nowrap; }
+
+  /* 直播实况 小卡 */
+  .mini-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 4px 0 10px; }
+  .mini-grid .m {
+    background: #fafbfd; border: 1px solid var(--line); border-radius: 10px; padding: 9px 10px;
+  }
+  .mini-grid .m .n { font-size: 16px; font-weight: 800; }
+  .mini-grid .m .l { font-size: 11px; color: var(--sub); margin-top: 1px; }
+  .live-tag {
+    display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: #fff;
+    background: var(--red); padding: 2px 8px; border-radius: 20px; font-weight: 700;
+  }
+  .live-tag::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: #fff; animation: blink 1.2s infinite; }
+  @keyframes blink { 50% { opacity: .25; } }
+
+  .loading { color: var(--sub); font-size: 13px; padding: 40px; text-align: center; }
+  footer { text-align: center; color: #9aa3b2; font-size: 12px; margin-top: 22px; }
+  footer a { color: var(--blue); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>京东10143 · 数据大屏</h1>
+  <span class="sub" id="updated">加载中…</span>
+  <span class="grow"></span>
+  <div class="seg" id="seg">
+    <button data-d="7">近 7 天</button>
+    <button data-d="14" class="on">近 14 天</button>
+    <button data-d="30">近 30 天</button>
+    <button data-d="90">近 90 天</button>
+  </div>
+  <button class="btn" onclick="Dash.load()">刷新</button>
+  <button class="btn" onclick="Dash.fullscreen()">全屏</button>
+  <button class="btn" onclick="location.href='/live.html'">直播广场</button>
+  <button class="btn" onclick="location.href='/admin.html'">返回后台</button>
+</header>
+
+<main>
+  <div id="root"><div class="loading">正在加载统计数据…</div></div>
+</main>
+
+<footer>数据来源：MySQL <b>java10143</b> · 订单 / 明细 / 商品 / 短视频 / 直播 / 券秒杀 实时聚合 · 本页仅管理员可见</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="/js/api.js"></script>
+<script>
+const COLORS = ['#e1251b', '#2f6fed', '#14a37f', '#f5a524', '#8b5cf6', '#0ea5e9', '#ef6c00', '#64748b'];
+
+const Dash = {
+  days: 14,
+  charts: [],
+
+  money(v) {
+    const n = Number(v || 0);
+    if (n >= 100000000) return (n / 100000000).toFixed(2) + ' 亿';
+    if (n >= 10000) return (n / 10000).toFixed(2) + ' 万';
+    return n.toFixed(2);
+  },
+  int(v) {
+    const n = Number(v || 0);
+    if (n >= 10000) return (n / 10000).toFixed(1) + '万';
+    return n.toLocaleString('zh-CN');
+  },
+
+  async load() {
+    const root = document.getElementById('root');
+    if (!API.token()) {
+      root.innerHTML = '<div class="card"><div class="loading">请先在 <a href="/admin.html">管理后台</a> 用管理员账号登录（数据大屏走 /admin/** 接口，必须带 token）</div></div>';
+      return;
+    }
+    try {
+      const d = await API.request('/admin/dashboard?days=' + Dash.days);
+      Dash.render(d);
+      document.getElementById('updated').textContent =
+        '更新于 ' + new Date().toLocaleTimeString('zh-CN', { hour12: false });
+    } catch (e) {
+      document.getElementById('updated').textContent = '加载失败';
+      root.innerHTML = '<div class="card"><div class="loading" style="color:#e1251b">' + e.message +
+        '<br><br>如果是"没有权限"，请用 admin 账号重新登录后台。</div></div>';
+    }
+  },
+
+  render(d) {
+    const k = d.kpi, mk2 = d.market || {}, lv = d.live || {};
+    const root = document.getElementById('root');
+    root.innerHTML = `
+      <div class="kpis">
+        <div class="kpi red"><div class="k">累计成交额 GMV</div><div class="v"><small>￥</small>${Dash.money(k.gmv)}</div><div class="t">不含已取消订单</div></div>
+        <div class="kpi blue"><div class="k">订单总数</div><div class="v">${k.orderCount}</div><div class="t">客单价 ￥${Dash.money(k.avgPrice)}</div></div>
+        <div class="kpi green"><div class="k">注册用户</div><div class="v">${k.userCount}</div><div class="t">含管理员</div></div>
+        <div class="kpi orange"><div class="k">在售商品</div><div class="v">${k.goodsCount}</div><div class="t">SPU 数</div></div>
+        <div class="kpi red"><div class="k">短视频</div><div class="v">${k.videoCount}</div><div class="t">带货视频 ${d.video.linkedVideo} 条</div></div>
+        <div class="kpi purple"><div class="k">券已抵扣</div><div class="v"><small>￥</small>${Dash.money(mk2.couponDiscount)}</div><div class="t">秒杀售出 ${mk2.seckillSold} 件</div></div>
+      </div>
+
+      <div class="card" style="margin-bottom:14px">
+        <h3><span class="dot"></span>经营概览<span class="hint">按订单创建时间统计</span></h3>
+        <div class="periods">
+          ${d.periods.map(p => `
+            <div class="period">
+              <div class="lab">${p.label}</div>
+              <div class="amt">￥${Dash.money(p.amount)}</div>
+              <div class="meta">${p.orderCount} 单 · ${p.userCount} 位用户下单</div>
+            </div>`).join('')}
+        </div>
+      </div>
+
+      <div class="grid row-2" style="margin-bottom:14px">
+        <div class="card">
+          <h3><span class="dot"></span>销售额趋势<span class="hint">近 ${d.days} 天</span></h3>
+          <div class="chart tall" id="c-trend"></div>
+        </div>
+        <div class="card">
+          <h3><span class="dot"></span>类目销售占比<span class="hint">按成交金额</span></h3>
+          <div class="chart tall" id="c-pie"></div>
+        </div>
+      </div>
+
+      <div class="grid row-3" style="margin-bottom:14px">
+        <div class="card">
+          <h3><span class="dot"></span>转化漏斗<span class="hint">曝光→支付 总转化 ${(d.cvr || {}).totalCvr || 0}%</span></h3>
+          <div class="chart" id="c-funnel"></div>
+        </div>
+        <div class="card">
+          <h3><span class="dot"></span>24 小时活跃度<span class="hint">下单时段分布</span></h3>
+          <div class="chart" id="c-hour"></div>
+        </div>
+        <div class="card">
+          <h3><span class="dot"></span>订单状态分布</h3>
+          <div class="chart" id="c-state"></div>
+        </div>
+      </div>
+
+      <div class="grid row-2b" style="margin-bottom:14px">
+        <div class="card">
+          <h3><span class="dot"></span>消费榜 Top 8<span class="hint">按成交额</span></h3>
+          <div class="rank">
+            ${(d.userTop || []).map((u, i) => `
+              <div class="rw">
+                <span class="no">${i + 1}</span>
+                <span class="nm">${u.name}<i>${u.account}</i></span>
+                <span class="amt">￥${Dash.money(u.amount)}</span>
+              </div>`).join('') || '<div class="loading" style="padding:24px">暂无成交数据</div>'}
+          </div>
+        </div>
+        <div class="card">
+          <h3><span class="dot"></span>热销商品 Top 10<span class="hint">按销量</span></h3>
+          <div class="chart short" id="c-top"></div>
+        </div>
+      </div>
+
+      <div class="grid row-2e" style="margin-bottom:14px">
+        <div class="card">
+          <h3><span class="dot"></span>月度成交额<span class="hint">近 12 个月</span></h3>
+          <div class="chart" id="c-month"></div>
+        </div>
+        <div class="card">
+          <h3><span class="dot"></span>营销活动实况<span class="hint">优惠券 / 限时秒杀</span></h3>
+          <div class="mini-grid four" style="grid-template-columns:repeat(4,1fr)">
+            <div class="m"><div class="n" style="color:var(--red)">${Dash.int(mk2.couponTaken)}</div><div class="l">券已领 / 共 ${Dash.int(mk2.couponTotal)}</div></div>
+            <div class="m"><div class="n" style="color:var(--green)">${Dash.int(mk2.couponUsed)}</div><div class="l">券已核销</div></div>
+            <div class="m"><div class="n" style="color:var(--blue)">${Dash.int(mk2.seckillSold)}</div><div class="l">秒杀售出</div></div>
+            <div class="m"><div class="n" style="color:var(--orange)">${Dash.int(mk2.seckillStock)}</div><div class="l">秒杀总库存</div></div>
+          </div>
+          <div class="chart mini" id="c-market"></div>
+        </div>
+      </div>
+
+      <div class="grid row-2" style="margin-bottom:14px">
+        <div class="card">
+          <h3><span class="dot"></span>直播实况
+            ${lv.livingCount > 0 ? '<span class="live-tag" style="margin-left:6px">' + lv.livingCount + ' 场直播中</span>' : ''}
+            <span class="hint">观看 / 互动 / 挂车</span>
+          </h3>
+          <div class="mini-grid">
+            <div class="m"><div class="n" style="color:var(--red)">${Dash.int(lv.onlineTotal)}</div><div class="l">当前在线人数</div></div>
+            <div class="m"><div class="n" style="color:var(--blue)">${Dash.int(lv.viewerTotal)}</div><div class="l">累计观看</div></div>
+            <div class="m"><div class="n" style="color:var(--purple)">${Dash.int(lv.danmuCount)}</div><div class="l">弹幕总数</div></div>
+          </div>
+          <div class="chart short" id="c-live"></div>
+        </div>
+        <div class="card">
+          <h3><span class="dot"></span>内容电商闭环<span class="hint">短视频互动 → 商品转化</span></h3>
+          <div class="loop" style="margin-bottom:4px">
+            <div class="item"><div class="n">${d.video.linkedVideo}</div><div class="l">带货视频</div></div>
+            <div class="item"><div class="n">${Dash.int(d.video.likeCount)}</div><div class="l">累计点赞</div></div>
+            <div class="item"><div class="n">${Dash.int(d.video.commentCount)}</div><div class="l">累计评论</div></div>
+            <div class="item"><div class="n">${Dash.int(d.video.collectCount)}</div><div class="l">累计收藏</div></div>
+            <div class="item"><div class="n">${Dash.int(d.video.shareCount)}</div><div class="l">累计分享</div></div>
+          </div>
+          <div class="chart short" id="c-video"></div>
+        </div>
+      </div>`;
+
+    Dash.charts.forEach(c => c.dispose());
+    Dash.charts = [];
+
+    const mk = (id, option) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const c = echarts.init(el);
+      c.setOption(option);
+      Dash.charts.push(c);
+      return c;
+    };
+
+    /* --- 销售额趋势：柱 + 折线双轴 --- */
+    mk('c-trend', {
+      color: ['#e1251b', '#2f6fed'],
+      grid: { left: 58, right: 48, top: 34, bottom: 28 },
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: { type: 'shadow' },
+        formatter(ps) {
+          let s = ps[0].axisValue + '<br>';
+          ps.forEach(p => {
+            s += p.marker + p.seriesName + '：' +
+              (p.seriesName === '销售额' ? '￥' + Number(p.value).toFixed(2) : p.value + ' 单') + '<br>';
+          });
+          return s;
+        }
+      },
+      legend: { right: 10, top: 4, itemGap: 18, itemWidth: 14, itemHeight: 9, textStyle: { fontSize: 11.5, padding: [0, 0, 0, 2] } },
+      xAxis: {
+        type: 'category', data: d.trend.labels,
+        axisLine: { lineStyle: { color: '#dfe3ea' } },
+        axisLabel: { color: '#7b8496', fontSize: 11 }
+      },
+      yAxis: [
+        { type: 'value', splitLine: { lineStyle: { color: '#f0f2f6' } },
+          axisLabel: { color: '#7b8496', fontSize: 11, formatter: v => v >= 10000 ? (v / 10000) + '万' : v } },
+        { type: 'value', splitLine: { show: false }, axisLabel: { color: '#7b8496', fontSize: 11 } }
+      ],
+      series: [
+        { name: '销售额', type: 'bar', barMaxWidth: 22, data: d.trend.amount,
+          itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: '#f0524a' }, { offset: 1, color: '#e1251b' }]), borderRadius: [4, 4, 0, 0] } },
+        { name: '订单量', type: 'line', yAxisIndex: 1, smooth: true, symbolSize: 6,
+          data: d.trend.count, lineStyle: { width: 2.5 },
+          areaStyle: { opacity: .1 } }
+      ]
+    });
+
+    /* --- 类目占比饼图 --- */
+    const pie = (d.categoryPie || []).map(x => ({ name: x.name, value: x.value }));
+    mk('c-pie', {
+      color: COLORS,
+      tooltip: {
+        trigger: 'item',
+        formatter: p => `${p.name}<br>￥${Number(p.value).toFixed(2)}（${p.percent}%）`
+      },
+      legend: { type: 'scroll', orient: 'vertical', right: 4, top: 'middle',
+        itemWidth: 9, itemHeight: 9, textStyle: { fontSize: 11.5, color: '#5c6577' } },
+      series: [{
+        type: 'pie', radius: ['42%', '68%'], center: ['38%', '52%'],
+        avoidLabelOverlap: true,
+        itemStyle: { borderColor: '#fff', borderWidth: 2 },
+        label: { show: false },
+        emphasis: { label: { show: true, fontSize: 13, fontWeight: 700, formatter: '{b}\n{d}%' } },
+        data: pie
+      }]
+    });
+
+    /* --- 转化漏斗 --- */
+    const fn = d.funnel || [];
+    const cvr = d.cvr || {};
+    const rateOf = [1, (cvr.cartCvr || 0) / 100, (cvr.orderCvr || 0) / 100, (cvr.payCvr || 0) / 100];
+    mk('c-funnel', {
+      color: COLORS,
+      tooltip: {
+        trigger: 'item',
+        formatter: p => {
+          const i = p.dataIndex;
+          return `${p.name}：${Number(p.value).toLocaleString('zh-CN')}` +
+            (i > 0 ? `<br>上一环节转化率：${(rateOf[i] * 100).toFixed(1)}%` : '');
+        }
+      },
+      series: [{
+        type: 'funnel', left: '6%', right: '6%', top: 14, bottom: 8,
+        minSize: '22%', gap: 3, sort: 'descending',
+        label: { show: true, position: 'inside', fontSize: 11.5, color: '#fff', fontWeight: 600,
+          formatter: p => p.name + '  ' + (p.value >= 10000 ? (p.value / 10000).toFixed(1) + '万' : p.value) },
+        itemStyle: { borderColor: '#fff', borderWidth: 1.5, borderRadius: 4 },
+        data: fn.map((x, i) => ({
+          name: x.label, value: x.value,
+          itemStyle: { color: ['#e1251b', '#f5a524', '#2f6fed', '#14a37f'][i] || '#94a3b8' }
+        }))
+      }]
+    });
+
+    /* --- 24 小时活跃度 --- */
+    const hr = d.hourly || { labels: [], count: [], amount: [] };
+    mk('c-hour', {
+      grid: { left: 40, right: 16, top: 20, bottom: 24 },
+      tooltip: {
+        trigger: 'axis', axisPointer: { type: 'shadow' },
+        formatter: ps => ps[0].axisValue + '<br>订单：' + ps[0].value + ' 单<br>金额：￥' + Number(hr.amount[ps[0].dataIndex] || 0).toFixed(2)
+      },
+      xAxis: { type: 'category', data: hr.labels,
+        axisLine: { lineStyle: { color: '#dfe3ea' } },
+        axisLabel: { color: '#9aa3b2', fontSize: 10, interval: 3 } },
+      yAxis: { type: 'value', splitLine: { lineStyle: { color: '#f0f2f6' } },
+        axisLabel: { color: '#9aa3b2', fontSize: 10 } },
+      series: [{
+        type: 'bar', data: hr.count, barMaxWidth: 12,
+        itemStyle: {
+          borderRadius: [3, 3, 0, 0],
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: '#8b5cf6' }, { offset: 1, color: '#c4b5fd' }])
+        }
+      }]
+    });
+
+    /* --- 订单状态环形 --- */
+    mk('c-state', {
+      color: ['#f5a524', '#2f6fed', '#0ea5e9', '#8b5cf6', '#14a37f', '#94a3b8'],
+      tooltip: { trigger: 'item', formatter: '{b}：{c} 单（{d}%）' },
+      legend: { bottom: 0, itemWidth: 9, itemHeight: 9, textStyle: { fontSize: 11.5, color: '#5c6577' } },
+      series: [{
+        type: 'pie', radius: ['46%', '66%'], center: ['50%', '42%'],
+        itemStyle: { borderColor: '#fff', borderWidth: 2 },
+        label: { formatter: '{b}\n{c}', fontSize: 11, color: '#5c6577' },
+        labelLine: { length: 8, length2: 8 },
+        data: (d.stateRing || []).map(x => ({ name: x.name, value: Number(x.value) }))
+      }]
+    });
+
+    /* --- 热销 Top10 横向柱状 --- */
+    const top = (d.topGoods || []).slice().reverse();
+    mk('c-top', {
+      grid: { left: 8, right: 46, top: 12, bottom: 8, containLabel: true },
+      tooltip: {
+        trigger: 'axis', axisPointer: { type: 'shadow' },
+        formatter: ps => {
+          const p = ps[0];
+          const g = top[p.dataIndex];
+          return `${g.name}<br>销量：${g.qty}<br>金额：￥${Number(g.amt).toFixed(2)}`;
+        }
+      },
+      xAxis: { type: 'value', splitLine: { lineStyle: { color: '#f0f2f6' } },
+        axisLabel: { color: '#9aa3b2', fontSize: 11 } },
+      yAxis: { type: 'category',
+        data: top.map(x => x.name.length > 12 ? x.name.slice(0, 12) + '…' : x.name),
+        axisLine: { show: false }, axisTick: { show: false },
+        axisLabel: { color: '#5c6577', fontSize: 11.5 } },
+      series: [{
+        type: 'bar', barMaxWidth: 14, data: top.map(x => x.qty),
+        itemStyle: {
+          borderRadius: [0, 4, 4, 0],
+          color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+            { offset: 0, color: '#ffb3ae' }, { offset: 1, color: '#e1251b' }])
+        },
+        label: { show: true, position: 'right', fontSize: 11, color: '#e1251b', fontWeight: 700 }
+      }]
+    });
+
+    /* --- 月度成交额 --- */
+    mk('c-month', {
+      grid: { left: 58, right: 20, top: 20, bottom: 26 },
+      tooltip: { trigger: 'axis', formatter: ps => ps[0].axisValue + '<br>￥' + Number(ps[0].value).toFixed(2) },
+      xAxis: { type: 'category', data: d.monthly.labels,
+        axisLine: { lineStyle: { color: '#dfe3ea' } },
+        axisLabel: { color: '#7b8496', fontSize: 11 } },
+      yAxis: { type: 'value', splitLine: { lineStyle: { color: '#f0f2f6' } },
+        axisLabel: { color: '#7b8496', fontSize: 11, formatter: v => v >= 10000 ? (v / 10000) + '万' : v } },
+      series: [{
+        type: 'bar', barMaxWidth: 26, data: d.monthly.amount,
+        itemStyle: {
+          borderRadius: [5, 5, 0, 0],
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: '#6b9bff' }, { offset: 1, color: '#2f6fed' }])
+        }
+      }]
+    });
+
+    /* --- 营销活动：券领取/核销 + 秒杀消纳 双进度 --- */
+    const total = Number(mk2.couponTotal || 1), taken = Number(mk2.couponTaken || 0), used = Number(mk2.couponUsed || 0);
+    const skStock = Number(mk2.seckillStock || 1), skSold = Number(mk2.seckillSold || 0);
+    mk('c-market', {
+      grid: { left: 10, right: 60, top: 22, bottom: 6, containLabel: true },
+      tooltip: {},
+      xAxis: { type: 'value', max: 100, splitLine: { lineStyle: { color: '#f0f2f6' } },
+        axisLabel: { color: '#9aa3b2', fontSize: 10, formatter: '{value}%' } },
+      yAxis: { type: 'category', data: ['秒杀消纳', '券已核销', '券已领取'],
+        axisLine: { show: false }, axisTick: { show: false },
+        axisLabel: { color: '#5c6577', fontSize: 11.5 } },
+      series: [{
+        type: 'bar', barMaxWidth: 18,
+        data: [
+          { value: +(skSold * 100 / Math.max(skStock, 1)).toFixed(1), itemStyle: { color: '#f5a524' } },
+          { value: +(used * 100 / Math.max(total, 1)).toFixed(1), itemStyle: { color: '#14a37f' } },
+          { value: +(taken * 100 / Math.max(total, 1)).toFixed(1), itemStyle: { color: '#e1251b' } }
+        ],
+        itemStyle: { borderRadius: [0, 5, 5, 0] },
+        label: { show: true, position: 'right', fontSize: 11, color: '#5c6577', formatter: '{c}%' }
+      }]
+    });
+
+    /* --- 直播：各直播间观看/在线对比 --- */
+    mk('c-live', {
+      grid: { left: 8, right: 40, top: 16, bottom: 6, containLabel: true },
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+      legend: { right: 4, top: 0, itemWidth: 10, itemHeight: 8, textStyle: { fontSize: 11 } },
+      xAxis: { type: 'value', splitLine: { lineStyle: { color: '#f0f2f6' } },
+        axisLabel: { color: '#9aa3b2', fontSize: 10, formatter: v => v >= 10000 ? (v / 10000) + '万' : v } },
+      yAxis: { type: 'category', data: ['观看量', '点赞', '挂车数'],
+        axisLine: { show: false }, axisTick: { show: false },
+        axisLabel: { color: '#5c6577', fontSize: 11.5 } },
+      series: [{
+        type: 'bar', barMaxWidth: 16,
+        data: [
+          { value: Number(lv.viewerTotal || 0), itemStyle: { color: '#2f6fed' } },
+          { value: Number(lv.liveLike || 0), itemStyle: { color: '#e1251b' } },
+          { value: Number(lv.liveGoods || 0) * 100, itemStyle: { color: '#14a37f' } }
+        ],
+        itemStyle: { borderRadius: [0, 4, 4, 0] },
+        label: { show: true, position: 'right', fontSize: 11, color: '#5c6577',
+          formatter: p => p.dataIndex === 2 ? (p.value / 100) + ' 件' : (p.value >= 10000 ? (p.value / 10000).toFixed(1) + '万' : p.value) }
+      }]
+    });
+
+    /* --- 短视频互动对比 --- */
+    const v = d.video;
+    mk('c-video', {
+      grid: { left: 8, right: 16, top: 10, bottom: 6, containLabel: true },
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+      xAxis: { type: 'value', splitLine: { lineStyle: { color: '#f0f2f6' } },
+        axisLabel: { color: '#9aa3b2', fontSize: 11, formatter: v2 => v2 >= 10000 ? (v2 / 10000) + '万' : v2 } },
+      yAxis: { type: 'category', data: ['分享', '收藏', '评论', '点赞'],
+        axisLine: { show: false }, axisTick: { show: false },
+        axisLabel: { color: '#5c6577', fontSize: 12 } },
+      series: [{
+        type: 'bar', barMaxWidth: 16,
+        data: [
+          { value: v.shareCount, itemStyle: { color: '#f5a524' } },
+          { value: v.collectCount, itemStyle: { color: '#14a37f' } },
+          { value: v.commentCount, itemStyle: { color: '#2f6fed' } },
+          { value: v.likeCount, itemStyle: { color: '#e1251b' } }
+        ],
+        itemStyle: { borderRadius: [0, 4, 4, 0] },
+        label: { show: true, position: 'right', fontSize: 11, color: '#5c6577' }
+      }]
+    });
+
+    window.addEventListener('resize', Dash.resize);
+  },
+
+  resize() {
+    Dash.charts.forEach(c => c.resize());
+  },
+
+  fullscreen() {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+    else document.exitFullscreen();
+  }
+};
+
+/* 天数切换 */
+document.getElementById('seg').addEventListener('click', (e) => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  [...document.querySelectorAll('#seg button')].forEach(x => x.classList.remove('on'));
+  b.classList.add('on');
+  Dash.days = Number(b.dataset.d);
+  Dash.load();
+});
+
+/* 30 秒自动刷新，演示时数据一直"活着" */
+setInterval(() => { if (!document.hidden) Dash.load(); }, 30000);
+
+Dash.load();
+</script>
+</body>
+</html>

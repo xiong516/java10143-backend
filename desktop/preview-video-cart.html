@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>效果预览 · 短视频挂购物车</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; background: #111318; overflow: hidden; font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; color: #fff; }
+  body { display: flex; align-items: center; justify-content: center; }
+
+  /* 手机壳 */
+  .phone {
+    position: relative; width: 390px; height: 780px; max-height: 96vh;
+    background: #000; border-radius: 34px; overflow: hidden;
+    box-shadow: 0 24px 70px rgba(0,0,0,.55), 0 0 0 9px #1c1f26, 0 0 0 10px #33373f;
+  }
+  .phone .notch {
+    position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: 130px; height: 24px; background: #000; border-radius: 0 0 16px 16px; z-index: 90;
+  }
+
+  /* 信息流 */
+  #feed { height: 100%; overflow-y: scroll; scroll-snap-type: y mandatory; scrollbar-width: none; }
+  #feed::-webkit-scrollbar { display: none; }
+  .slide {
+    position: relative; height: 100%; width: 100%; scroll-snap-align: start; scroll-snap-stop: always;
+    display: flex; align-items: center; justify-content: center; overflow: hidden; background: #0b0f19;
+  }
+  .slide video, .slide .fallback { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .slide .fallback {
+    display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(circle at 50% 35%, #1e293b, #050810 70%);
+  }
+  .slide .fallback img {
+    width: 74%; border-radius: 22px; box-shadow: 0 24px 60px rgba(0,0,0,.6);
+    animation: kenburns 6s ease-in-out infinite alternate;
+  }
+  @keyframes kenburns { from { transform: scale(1); } to { transform: scale(1.1) translateY(-8px); } }
+  .slide .shade {
+    position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(to bottom, rgba(0,0,0,.5) 0%, rgba(0,0,0,0) 22%, rgba(0,0,0,0) 52%, rgba(0,0,0,.82) 100%);
+  }
+
+  /* 顶栏 */
+  .topbar {
+    position: absolute; top: 0; left: 0; right: 0; z-index: 60;
+    display: flex; align-items: center; gap: 8px; padding: 30px 12px 12px;
+    background: linear-gradient(to bottom, rgba(0,0,0,.55), rgba(0,0,0,0));
+    pointer-events: none;
+  }
+  .topbar > * { pointer-events: auto; }
+  .topbar .tab { font-size: 14px; opacity: .55; padding: 4px 2px; cursor: pointer; }
+  .topbar .tab.on { opacity: 1; font-weight: 700; }
+  .topbar .spacer { flex: 1; }
+  .topbar .pill {
+    font-size: 11.5px; background: rgba(255,255,255,.16); padding: 5px 10px; border-radius: 20px;
+    backdrop-filter: blur(6px); cursor: pointer;
+  }
+
+  /* 右侧互动 */
+  .rail {
+    position: absolute; right: 10px; bottom: 108px; z-index: 40;
+    display: flex; flex-direction: column; align-items: center; gap: 15px;
+  }
+  .rail .btn { display: flex; flex-direction: column; align-items: center; cursor: pointer; position: relative; }
+  .rail .ico {
+    width: 44px; height: 44px; border-radius: 50%; background: rgba(255,255,255,.15);
+    backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center;
+    font-size: 21px; transition: transform .15s;
+  }
+  .rail .btn:active .ico { transform: scale(.86); }
+  .rail .ico.liked { background: #e1251b; }
+  .rail .n { font-size: 10.5px; margin-top: 3px; text-shadow: 0 1px 3px rgba(0,0,0,.7); }
+  .rail .avatar { width: 44px; height: 44px; border-radius: 50%; border: 2px solid #fff; object-fit: cover; }
+
+  /* —— 核心：左下角同款商品卡（新） —— */
+  .meta { position: absolute; left: 12px; right: 78px; bottom: 26px; z-index: 40; }
+  .meta .author { font-size: 14.5px; font-weight: 700; margin-bottom: 5px; }
+  .meta .title { font-size: 13.5px; line-height: 1.5; margin-bottom: 5px; }
+  .meta .desc { font-size: 12px; opacity: .8; line-height: 1.5; margin-bottom: 7px; }
+  .meta .tags { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 9px; }
+  .meta .tags span { font-size: 11px; color: #ffd35c; background: rgba(255,211,92,.14); padding: 2px 8px; border-radius: 20px; }
+
+  .goods-card {
+    position: relative; display: flex; align-items: center; gap: 8px;
+    background: rgba(24,24,28,.72); backdrop-filter: blur(14px);
+    border: 1px solid rgba(255,255,255,.14);
+    padding: 6px 8px 6px 6px; border-radius: 12px; max-width: 262px; cursor: pointer;
+    transition: transform .16s, background .16s;
+    animation: cardIn .5s cubic-bezier(.2,.8,.3,1) both;
+  }
+  @keyframes cardIn { from { opacity: 0; transform: translateY(14px) scale(.96); } to { opacity: 1; transform: none; } }
+  .goods-card:hover { background: rgba(40,40,46,.85); transform: translateY(-1px); }
+  .goods-card:active { transform: scale(.98); }
+  .goods-card img { width: 42px; height: 42px; border-radius: 8px; object-fit: cover; background: #fff; flex: none; }
+  .goods-card .info { flex: 1; min-width: 0; }
+  .goods-card .gn { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-bottom: 3px; }
+  .goods-card .gprow { display: flex; align-items: baseline; gap: 6px; }
+  .goods-card .gp { font-size: 14px; font-weight: 700; color: #ffd35c; }
+  .goods-card .gp small { font-size: 10px; font-weight: 400; }
+  .goods-card .go {
+    font-size: 11px; background: linear-gradient(135deg,#f2270c,#e1251b); color: #fff;
+    padding: 5px 10px; border-radius: 20px; white-space: nowrap; flex: none;
+    box-shadow: 0 3px 10px rgba(225,37,27,.4);
+  }
+  .goods-card .badge {
+    position: absolute; top: -8px; left: 6px; font-size: 9.5px; letter-spacing: .5px;
+    background: linear-gradient(135deg,#ff8a00,#ff3d00); padding: 2px 7px; border-radius: 10px 10px 10px 2px;
+    font-weight: 700; box-shadow: 0 2px 8px rgba(255,61,0,.45);
+  }
+
+  /* 滑动提示 */
+  .hint-swipe {
+    position: absolute; left: 50%; bottom: 200px; transform: translateX(-50%);
+    font-size: 11.5px; color: rgba(255,255,255,.6); z-index: 30; text-align: center;
+    animation: float 2.4s ease-in-out infinite; pointer-events: none;
+  }
+  @keyframes float { 0%,100% { transform: translate(-50%,0); } 50% { transform: translate(-50%,-8px); } }
+
+  /* Toast */
+  .tip {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
+    background: rgba(0,0,0,.82); padding: 10px 18px; border-radius: 22px;
+    font-size: 13px; z-index: 100; opacity: 0; transition: opacity .2s; pointer-events: none;
+    max-width: 260px; text-align: center; line-height: 1.5;
+  }
+  .tip.show { opacity: 1; }
+
+  /* 底部弹层：商品详情卡（点击同款后） */
+  .sheet-mask {
+    position: absolute; inset: 0; background: rgba(0,0,0,.55); z-index: 80;
+    display: none; align-items: flex-end;
+  }
+  .sheet-mask.show { display: flex; }
+  .sheet {
+    width: 100%; background: #fff; color: #222; border-radius: 16px 16px 0 0;
+    animation: up .24s cubic-bezier(.2,.8,.3,1); padding-bottom: 14px;
+  }
+  @keyframes up { from { transform: translateY(70%); } to { transform: none; } }
+  .sheet .bar { padding: 12px 14px 6px; text-align: center; font-size: 12px; color: #999; position: relative; }
+  .sheet .bar .x { position: absolute; right: 14px; top: 8px; font-size: 20px; color: #bbb; cursor: pointer; }
+  .sheet .row { display: flex; gap: 12px; padding: 4px 14px 12px; }
+  .sheet .row img { width: 92px; height: 92px; border-radius: 10px; object-fit: cover; border: 1px solid #eee; }
+  .sheet .row .r { flex: 1; min-width: 0; }
+  .sheet .row .nm { font-size: 14px; font-weight: 600; line-height: 1.4; margin-bottom: 6px; }
+  .sheet .row .pr { color: #e1251b; font-size: 20px; font-weight: 700; }
+  .sheet .row .pr small { font-size: 12px; }
+  .sheet .row .meta2 { font-size: 11.5px; color: #999; margin-top: 5px; }
+  .sheet .acts { display: flex; gap: 10px; padding: 6px 14px 0; }
+  .sheet .acts button { flex: 1; height: 42px; border-radius: 21px; border: none; font-size: 14px; cursor: pointer; }
+  .sheet .acts .c1 { background: #ffe8e6; color: #e1251b; }
+  .sheet .acts .c2 { background: linear-gradient(135deg,#f2270c,#e1251b); color: #fff; }
+  .sheet .from { text-align: center; font-size: 11px; color: #aaa; padding-top: 9px; }
+
+  /* 右侧说明面板 */
+  .guide {
+    width: 300px; margin-left: 34px; color: #d7dae1; font-size: 13px; line-height: 1.85;
+  }
+  .guide h2 { font-size: 16px; font-weight: 500; color: #fff; margin-bottom: 12px; }
+  .guide .item { display: flex; gap: 9px; margin-bottom: 9px; }
+  .guide .num {
+    flex: none; width: 18px; height: 18px; border-radius: 50%; background: #2a2f3a; color: #9fb0c8;
+    font-size: 11px; display: flex; align-items: center; justify-content: center; margin-top: 3px;
+  }
+  .guide .k { color: #ffd35c; }
+  .guide .note { margin-top: 16px; padding: 11px 13px; background: #1b1f27; border-left: 2px solid #3d4756; border-radius: 6px; font-size: 12px; color: #9aa4b2; line-height: 1.7; }
+  @media (max-width: 900px) { .guide { display: none; } }
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="notch"></div>
+  <div id="feed"></div>
+
+  <div class="topbar">
+    <div class="tab">关注</div>
+    <div class="tab on">推荐</div>
+    <div class="spacer"></div>
+    <div class="pill" onclick="toast('这版是效果预览，切页演示用')">逛街</div>
+  </div>
+
+  <div class="hint-swipe" id="swipeHint">↕ 上下滑动切换视频</div>
+  <div class="tip" id="tip"></div>
+
+  <div class="sheet-mask" id="sheetMask" onclick="if(event.target===this)closeSheet()">
+    <div class="sheet" id="sheet"></div>
+  </div>
+</div>
+
+<div class="guide">
+  <h2>本次新增：视频挂购物车</h2>
+  <div class="item"><div class="num">1</div><div>每条视频左下角新增 <span class="k">「视频同款」</span> 商品小卡，浮在文案之上。</div></div>
+  <div class="item"><div class="num">2</div><div>卡片显示商品图、名称、价格，与视频内容对应。</div></div>
+  <div class="item"><div class="num">3</div><div>点卡片弹出商品详情面板，可直接 <span class="k">加购 / 立即购买</span>。</div></div>
+  <div class="item"><div class="num">4</div><div>点「去看看」跳商城商品详情页，带着视频来源。</div></div>
+  <div class="item"><div class="num">5</div><div>后台给视频绑定商品后，前端自动出现卡片；不绑就不显示。</div></div>
+  <div class="note">
+    数据链路不变：视频接口 <code>/home/video</code> 已经带了 <code>goods</code> 字段，这次只是把它「用起来」并补上加购动作。
+  </div>
+</div>
+
+<script>
+function toast(msg) {
+  const el = document.getElementById('tip');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => el.classList.remove('show'), 1700);
+}
+function n(v) {
+  const num = Number(v || 0);
+  return num >= 10000 ? (num / 10000).toFixed(1).replace('.0', '') + 'w' : String(num);
+}
+function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+const BASE = 'http://127.0.0.1:8080';
+const list = [
+ {id:'1',title:'HUAWEI Mate 70 Pro 上手实拍',description:'昆仑玻璃 + 鸿蒙原生，夜景抓拍稳得离谱',cover:BASE+'/img/p/p1001.png?t=华为Mate70Pro&v2',url:BASE+'/media/video/vtop1.mp4',authorName:'科技小王',authorAvatar:BASE+'/img/a/u1.png?t=科技小王&v2',tags:['数码','华为','新机上手'],likeCount:12812,commentCount:3,shareCount:326,collectCount:4613,goods:{id:'1001',name:'HUAWEI Mate 70 Pro 12+512G',price:'6499.00',picture:BASE+'/img/p/p1001.png?t=华为手机&v2'}},
+ {id:'3',title:'漫步者 NeoBuds Pro 3 降噪实测',description:'地铁里开降噪，世界瞬间安静',cover:BASE+'/img/p/p1004.png?t=降噪耳机&v2',url:BASE+'/media/video/v1004.mp4',authorName:'耳机控',authorAvatar:BASE+'/img/a/u3.png?t=耳机控&v2',tags:['数码','耳机','降噪'],likeCount:5301,commentCount:2,shareCount:123,collectCount:1800,goods:{id:'1004',name:'漫步者 NeoBuds Pro 3 降噪耳机',price:'899.00',picture:BASE+'/img/p/p1004.png?t=降噪耳机&v2'}},
+ {id:'8',title:'美的空气炸锅 5.5L 一锅三菜',description:'可视窗口，出餐不用开盖',cover:BASE+'/img/p/p1009.png?t=空气炸锅&v2',url:BASE+'/media/video/v1009.mp4',authorName:'厨房日记',authorAvatar:BASE+'/img/a/u2.png?t=厨房日记&v2',tags:['厨房','美食','好物'],likeCount:6102,commentCount:0,shareCount:140,collectCount:2000,goods:{id:'1009',name:'美的 空气炸锅 5.5L 可视款',price:'299.00',picture:BASE+'/media/goods/g1009.png'}},
+ {id:'10',title:'圣罗兰小金条试色',description:'秋冬必入的显白王炸色号',cover:BASE+'/img/p/p1016.png?t=圣罗兰口红&v2',url:BASE+'/media/video/v1016.mp4',authorName:'美妆种草机',authorAvatar:BASE+'/img/a/u1.png?t=美妆种草机&v2',tags:['美妆','口红','试色'],likeCount:12301,commentCount:0,shareCount:260,collectCount:4100,goods:{id:'1016',name:'圣罗兰 口红 小金条',price:'369.00',picture:BASE+'/media/goods/g1016.png'}}
+];
+
+const liked = new Set(), collected = new Set();
+
+function render() {
+  document.getElementById('feed').innerHTML = list.map((v, i) => `
+    <div class="slide" data-i="${i}">
+      ${v.url
+        ? `<video src="${v.url}" loop muted playsinline preload="${i < 2 ? 'auto' : 'none'}" poster="${v.cover}"></video>`
+        : `<div class="fallback"><img src="${v.cover}"></div>`}
+      <div class="shade"></div>
+
+      <div class="rail">
+        <div class="btn"><img class="avatar" src="${v.authorAvatar}"></div>
+        <div class="btn" onclick="like('${v.id}',this)">
+          <div class="ico ${liked.has(v.id)?'liked':''}">❤</div>
+          <div class="n">${n(v.likeCount)}</div>
+        </div>
+        <div class="btn" onclick="toast('评论区（本次不改动）')">
+          <div class="ico">💬</div><div class="n">${n(v.commentCount)}</div>
+        </div>
+        <div class="btn" onclick="toast('已复制分享链接')">
+          <div class="ico">↗</div><div class="n">${n(v.shareCount)}</div>
+        </div>
+        <div class="btn" onclick="fav('${v.id}',this)">
+          <div class="ico ${collected.has(v.id)?'liked':''}">★</div>
+          <div class="n">${n(v.collectCount)}</div>
+        </div>
+      </div>
+
+      <div class="meta">
+        <div class="author">@${esc(v.authorName)}</div>
+        <div class="title">${esc(v.title)}</div>
+        <div class="desc">${esc(v.description)}</div>
+        <div class="tags">${v.tags.map(t=>`<span>#${esc(t)}</span>`).join('')}</div>
+        ${v.goods ? `
+        <div class="goods-card" onclick="openSheet('${v.id}')">
+          <div class="badge">视频同款</div>
+          <img src="${v.goods.picture}" alt="">
+          <div class="info">
+            <div class="gn">${esc(v.goods.name)}</div>
+            <div class="gprow"><div class="gp"><small>￥</small>${esc(v.goods.price)}</div></div>
+          </div>
+          <div class="go">去看看</div>
+        </div>` : ''}
+      </div>
+    </div>`).join('');
+}
+
+function like(id, el) {
+  const on = liked.has(id);
+  on ? liked.delete(id) : liked.add(id);
+  el.querySelector('.ico').classList.toggle('liked', !on);
+  toast(on ? '已取消点赞' : '已点赞');
+}
+function fav(id, el) {
+  const on = collected.has(id);
+  on ? collected.delete(id) : collected.add(id);
+  el.querySelector('.ico').classList.toggle('liked', !on);
+  toast(on ? '已取消收藏' : '已收藏');
+}
+
+function openSheet(vid) {
+  const v = list.find(x => x.id === vid); if (!v || !v.goods) return;
+  const g = v.goods;
+  document.getElementById('sheet').innerHTML = `
+    <div class="bar">视频同款商品<span class="x" onclick="closeSheet()">×</span></div>
+    <div class="row">
+      <img src="${g.picture}">
+      <div class="r">
+        <div class="nm">${esc(g.name)}</div>
+        <div class="pr"><small>￥</small>${esc(g.price)}</div>
+        <div class="meta2">来自视频：${esc(v.title)}</div>
+        <div class="meta2">好评 98% · 24 小时发货</div>
+      </div>
+    </div>
+    <div class="acts">
+      <button class="c1" onclick="toast('已加入购物车：${esc(g.name)}')">加入购物车</button>
+      <button class="c2" onclick="toast('跳转商品详情页 #/goods/${g.id}')">立即购买</button>
+    </div>
+    <div class="from">真实页面点击「去看看」直接进 /index.html#/goods/${g.id}</div>`;
+  document.getElementById('sheetMask').classList.add('show');
+}
+function closeSheet() { document.getElementById('sheetMask').classList.remove('show'); }
+
+render();
+const first = document.querySelector('#feed video');
+if (first) first.play().catch(() => {});
+setTimeout(() => { const h = document.getElementById('swipeHint'); if (h) h.style.display = 'none'; }, 4500);
+
+document.getElementById('feed').addEventListener('scroll', () => {
+  const feed = document.getElementById('feed');
+  const idx = Math.round(feed.scrollTop / feed.clientHeight);
+  document.querySelectorAll('#feed video').forEach((v, i) => {
+    if (i === idx) v.play().catch(() => {});
+    else { v.pause(); v.currentTime = 0; }
+  });
+}, { passive: true });
+</script>
+</body>
+</html>

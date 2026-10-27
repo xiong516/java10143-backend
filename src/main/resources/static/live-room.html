@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>直播间 · 京东10143</title>
+<link rel="stylesheet" href="/css/live.css">
+<style>
+  /* 直播间视频舞台：手机/电脑都能真播放（演示用本地 mp4，支持 Range 边下边播） */
+  .stage .bg video.lv-video {
+    width: 100%; height: 100%; object-fit: cover; display: block;
+    background: #000; outline: none;
+    transition: opacity .45s ease;
+  }
+  /* 直播感：红点闪烁 + 飘心 + 讲解字幕 */
+  .room-tag.live { background: #ff2d55; }
+  .room-tag.live::before {
+    content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    background: #fff; margin-right: 5px; vertical-align: 1px; animation: lvblink 1s infinite;
+  }
+  @keyframes lvblink { 50% { opacity: .2; } }
+  .hearts { position: absolute; right: 30px; bottom: 170px; width: 60px; height: 260px;
+            pointer-events: none; z-index: 6; }
+  .hh { position: absolute; bottom: 0; right: 6px; font-size: 19px; color: #ff4d6a;
+        text-shadow: 0 1px 4px rgba(0,0,0,.5); animation: hhfly 2.4s ease-out forwards; opacity: 0; }
+  @keyframes hhfly {
+    0%   { transform: translate(0,0) scale(.5); opacity: 0; }
+    15%  { opacity: 1; }
+    100% { transform: translate(var(--dx, 18px), -250px) scale(1.3); opacity: 0; }
+  }
+  .pitch {
+    position: absolute; left: 12px; bottom: 148px; z-index: 5; max-width: 62%;
+    padding: 7px 12px; border-radius: 999px; font-size: 12px; color: #fff;
+    background: linear-gradient(90deg, rgba(255,45,85,.85), rgba(255,120,60,.75));
+    box-shadow: 0 2px 10px rgba(0,0,0,.35); transition: opacity .5s ease; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  @media (max-width: 980px) {
+    .pitch { bottom: 132px; font-size: 11px; max-width: 70%; }
+  }
+  /* 手机上隐藏整块播放器自带的黑边控件条，只留中间播放键 */
+  .stage .bg video.lv-video::-webkit-media-controls-panel { background: rgba(0,0,0,.25); }
+  @media (max-width: 980px) {
+    .room { height: auto; overflow: visible; }
+    .stage { height: 62vw; min-height: 240px; max-height: 56vh; }
+    .lv-top .nav a:nth-child(n+4) { display: none; }  /* 手机只留「返回 / 短视频 / 秒杀」 */
+    .stage .bottom { padding: 0 10px 10px; }
+    .stage .bottom .anchor-row .an { font-size: 14px; }
+  }
+</style>
+</head>
+<body>
+<script>
+/* App 内 webview 通顶：把真实状态栏高度写进 CSS 变量 --sbh，
+   顶栏用它补偿 padding，避免被系统状态栏压住；普通浏览器无 plus，保持 0 不变 */
+(function () {
+  function apply(h) { if (h) document.documentElement.style.setProperty('--sbh', h + 'px'); }
+  try {
+    if (window.plus && plus.navigator && plus.navigator.getStatusbarHeight) {
+      apply(plus.navigator.getStatusbarHeight());
+    } else {
+      document.addEventListener('plusready', function () {
+        try { apply(plus.navigator.getStatusbarHeight()); } catch (e) {}
+      }, false);
+    }
+  } catch (e) {}
+})();
+</script>
+
+<div class="lv-top">
+  <span class="logo">直播</span>
+  <div class="nav">
+    <a href="/live.html">← 直播广场</a>
+    <a href="/video.html">短视频</a>
+    <a href="/seckill.html">限时秒杀</a>
+    <a href="/coupon.html">领券中心</a>
+  </div>
+  <span class="spacer"></span>
+  <span class="who" id="who"></span>
+</div>
+
+<div id="root">
+  <div class="lv-empty" style="padding:100px 0">正在进入直播间…</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/js/api.js"></script>
+<script>
+const fmt = {
+  n(v) {
+    const x = Number(v || 0);
+    if (x >= 10000) return (x / 10000).toFixed(1) + '万';
+    return x.toLocaleString('zh-CN');
+  },
+  cd(ms) {
+    if (ms <= 0) return '00:00:00';
+    const s = Math.floor(ms / 1000);
+    const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), ss = s % 60;
+    const p = n => String(n).padStart(2, '0');
+    return p(h) + ':' + p(m) + ':' + p(ss);
+  }
+};
+
+const Room = {
+  id: null,
+  data: null,
+  lastMsgId: 0,
+  polling: null,
+  simTimer: null,
+  heartTimer: null,
+  pitchTimer: null,
+  rotateTimer: null,
+  onlineTimer: null,
+  clipIdx: 0,
+  tab: 'goods',
+  liked: false,
+  joined: false,
+
+  /* 多机位演示片：按房间号取对应机位组（/media/video/live{房间号}_1..4.mp4，
+     由 media/gen_batch.py 多图合成，像真实直播间一样定期切镜头。后端接推流后换成 streamUrl 即可） */
+  clips() {
+    const rid = Math.abs(Number(Room.id) || 1) || 1;
+    return [1, 2, 3, 4].map(k => '/media/video/live' + rid + '_' + k + '.mp4');
+  },
+
+  toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.classList.add('on');
+    clearTimeout(this._tt);
+    this._tt = setTimeout(() => t.classList.remove('on'), 2000);
+  },
+
+  async init() {
+    const m = location.search.match(/[?&]id=(\d+)/);
+    Room.id = m ? m[1] : null;
+    if (!Room.id) { location.replace('/live.html'); return; }
+
+    const u = API.user();
+    document.getElementById('who').textContent = u ? ('已登录：' + (u.nickname || u.account)) : '未登录';
+
+    try {
+      Room.data = await API.liveDetail(Room.id);
+    } catch (e) {
+      document.getElementById('root').innerHTML =
+        '<div class="lv-empty" style="padding:100px 0">直播间不存在或已关闭<br><br><a href="/live.html" style="color:#7fd0ff">← 返回直播广场</a></div>';
+      return;
+    }
+    Room.render();
+    Room.lastMsgId = (Room.data.messages || []).reduce((a, x) => Math.max(a, Number(x.id) || 0), 0);
+    Room.startPolling();
+    Room.startSim();
+
+    // 进场
+    try {
+      const c = await API.liveJoin(Room.id);
+      Room.joined = true;
+      Room.setCounters(c);
+    } catch (e) { /* 未登录也能看，只是不计在线 */ }
+  },
+
+  setCounters(c) {
+    if (!c) return;
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    set('c-online', fmt.n(c.onlineCount));
+    set('c-viewer', fmt.n(c.viewerCount));
+    set('c-like', fmt.n(c.likeCount));
+  },
+
+  render() {
+    const r = Room.data;
+    const st = r.status;
+    const statusTag = st === 1
+      ? '<span class="room-tag live">直播中</span>'
+      : (st === 0 ? '<span class="room-tag" style="background:#ffd35c;color:#4a2b00">预告</span>'
+                  : '<span class="room-tag" style="background:rgba(255,255,255,.2)">回放</span>');
+    // 直播视频源：优先用后端返回的 streamUrl（以后接真实推流直接塞进来），
+    // 没有就按房间号轮换本地演示片，保证「点进直播间真的有画面在看」
+    const clips = Room.clips();
+    Room.clipIdx = Math.abs((Number(Room.id) || 1) - 1) % clips.length;
+    const clip = r.streamUrl || r.videoUrl || clips[Room.clipIdx];
+    const poster = r.cover ? (' poster="' + r.cover + '"') : '';
+    // 直播不能用暂停/拖动：去掉 controls，pause 事件一律强制续播（见 initLive）
+    const bg = '<video id="lvVideo" class="lv-video" src="' + clip + '"' + poster +
+      ' autoplay muted loop playsinline webkit-playsinline x5-playsinline' +
+      ' disablepictureinpicture disableremoteplayback preload="auto"></video>';
+
+    document.getElementById('root').innerHTML = `
+      <div class="room">
+        <div class="stage">
+          <div class="bg">${bg}</div>
+          <div class="shade"></div>
+
+          <div class="head">
+            <span class="back" onclick="location.href='/live.html'">← 广场</span>
+            ${statusTag}
+            <span class="viewer-chip">👁 <b id="c-online">${fmt.n(r.onlineCount)}</b> 在线</span>
+            <span class="viewer-chip" id="cd-chip" style="display:none"></span>
+          </div>
+
+          <div class="danmu-layer" id="danmu"></div>
+          <div class="hearts" id="hearts"></div>
+          <div class="pitch" id="pitch" style="opacity:0"></div>
+
+          <div class="bottom">
+            <div class="anchor-row">
+              <span class="av">${(r.anchorName || '主播').slice(0, 1)}</span>
+              <div>
+                <div class="an">${r.anchorName || '主播'}</div>
+                <div class="ai">${r.title}</div>
+              </div>
+              <span class="follow" id="followBtn" onclick="Room.follow(this)">＋ 关注</span>
+            </div>
+            <div class="goods-tray" id="tray"></div>
+            <div class="chat-bar">
+              <input id="chatInput" placeholder="说点什么…" maxlength="60"
+                     onkeydown="if(event.key==='Enter')Room.send()">
+              <button class="icon-btn" id="likeBtn" onclick="Room.like()" title="点赞">❤</button>
+              <button class="send" onclick="Room.send()">发送</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="side">
+          <div class="tabbar">
+            <button class="on" data-t="goods" onclick="Room.tabTo('goods',this)">购物袋 (${r.goods.length})</button>
+            <button data-t="chat" onclick="Room.tabTo('chat',this)">互动</button>
+            <button data-t="info" onclick="Room.tabTo('info',this)">介绍</button>
+          </div>
+          <div class="pane" id="pane"></div>
+        </div>
+      </div>`;
+
+    Room.renderTray();
+    Room.renderPane();
+    Room.initLive();
+    (r.messages || []).forEach(m => Room.pushDanmu(m, false));
+
+    // 开播/结束倒计时
+    if (r.countdownMs > 0 || st === 1) {
+      const chip = document.getElementById('cd-chip');
+      chip.style.display = '';
+      Room.cdLeft = Number(r.countdownMs) || 0;
+      if (st === 1 && Room.cdLeft > 0) chip.textContent = '⏱ ' + fmt.cd(Room.cdLeft) + ' 后下播';
+      else if (st === 0) chip.textContent = '🕐 ' + fmt.cd(Room.cdLeft) + ' 后开播';
+      else chip.style.display = 'none';
+    }
+  },
+
+  renderTray() {
+    const r = Room.data;
+    document.getElementById('tray').innerHTML = (r.goods || []).map((g, i) => `
+      <div class="gt ${g.spot ? 'spot' : ''}" onclick="location.href='/index.html#/pages/detail/detail?id=${g.spuId}'">
+        ${g.spot ? '<span class="tag spot">讲解中</span>' : (i === 0 ? '<span class="tag">1 号链接</span>' : '')}
+        <img src="${g.pic}" alt="" onerror="this.style.visibility='hidden'">
+        <div class="gi">
+          <div class="gn">${g.name}</div>
+          <div class="gp"><small>￥</small>${Number(g.livePrice).toFixed(2)}</div>
+        </div>
+      </div>`).join('');
+  },
+
+  tabTo(t, el) {
+    Room.tab = t;
+    [...document.querySelectorAll('.tabbar button')].forEach(b => b.classList.remove('on'));
+    if (el) el.classList.add('on');
+    Room.renderPane();
+  },
+
+  renderPane() {
+    const r = Room.data;
+    const pane = document.getElementById('pane');
+    if (Room.tab === 'goods') {
+      if (!r.goods.length) { pane.innerHTML = '<div class="empty">主播还没上架商品</div>'; return; }
+      pane.innerHTML = r.goods.map(g => `
+        <div class="sg" onclick="location.href='/index.html#/pages/detail/detail?id=${g.spuId}'">
+          <img src="${g.pic}" alt="" onerror="this.style.visibility='hidden'">
+          <div class="si">
+            <div class="sn">${g.name}${g.spot ? '<span class="spot-tag">讲解中</span>' : ''}</div>
+            <div class="sp"><small>￥</small>${Number(g.livePrice).toFixed(2)}
+              <span style="font-size:10.5px;color:#8d97a8;font-weight:400;text-decoration:line-through;margin-left:5px">￥${Number(g.originPrice).toFixed(2)}</span>
+            </div>
+            <div class="srow">
+              ${g.off ? '<span class="off">' + g.off + '</span>' : ''}
+              <span class="bar"><i style="width:${g.soldPercent}%"></i></span>
+              <span>已抢 ${g.soldPercent}%</span>
+            </div>
+            <div class="srow"><span>库存 ${g.left} 件</span><span style="margin-left:auto;color:#ff4d3d;font-weight:700">直播价 省￥${Number(g.save || 0).toFixed(0)}</span></div>
+          </div>
+        </div>`).join('');
+    } else if (Room.tab === 'chat') {
+      pane.innerHTML = '<div id="chatPane"></div>';
+      (r.messages || []).forEach(m => Room.pushDanmu(m, false, true));
+    } else {
+      pane.innerHTML = `
+        <div style="padding:6px 4px;font-size:12.5px;line-height:1.9;color:#c2cad8">
+          <div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:8px">${r.title}</div>
+          <p style="color:#9aa3b2">${r.intro || '暂无简介'}</p>
+          <div style="margin-top:14px;display:grid;gap:8px">
+            <div>👤 主播：<b style="color:#fff">${r.anchorName || '-'}</b></div>
+            <div>🕐 开播：${r.startTime || '-'}</div>
+            <div>⏹ 结束：${r.endTime || '-'}</div>
+            <div>👁 累计观看：<b style="color:#fff">${fmt.n(r.viewerCount)}</b></div>
+            <div>❤ 累计点赞：<b style="color:#fff">${fmt.n(r.likeCount)}</b></div>
+            <div>🛒 挂车商品：<b style="color:#fff">${r.goodsCount}</b> 件</div>
+          </div>
+          <div style="margin-top:16px;padding:10px;border-radius:10px;background:rgba(255,211,92,.08);border:1px solid rgba(255,211,92,.24);color:#ffd35c;font-size:11.5px;line-height:1.7">
+            直播专享价仅在直播间有效，下单后 48 小时内发货；<br>所有商品支持 7 天无理由退换。
+          </div>
+        </div>`;
+    }
+  },
+
+  pushDanmu(m, animate = true, toChatPane = false) {
+    if (!m || !m.content) return;
+    const isSys = Number(m.type) === 1 || Number(m.type) === 2;
+    const nick = m.nickname || '观众';
+    const mine = nick === '我';
+    const html = `<div class="dm ${isSys ? 'sys' : ''} ${mine ? 'mine' : ''}">
+      ${isSys ? '' : '<b>' + nick + '：</b>'}${m.content}</div>`;
+
+    if (!toChatPane) {
+      const layer = document.getElementById('danmu');
+      if (layer) {
+        layer.insertAdjacentHTML('beforeend', html);
+        while (layer.children.length > 9) layer.removeChild(layer.firstChild);
+      }
+    }
+    // 互动 tab 也同步一份
+    const cp = document.getElementById('chatPane');
+    if (cp) {
+      cp.insertAdjacentHTML('beforeend', html);
+      cp.parentElement.scrollTop = cp.parentElement.scrollHeight;
+    }
+    if (Number(m.id)) Room.lastMsgId = Math.max(Room.lastMsgId, Number(m.id));
+  },
+
+  startPolling() {
+    clearInterval(Room.polling);
+    Room.polling = setInterval(async () => {
+      if (document.hidden) return;
+      try {
+        const list = await API.liveMessages(Room.id, Room.lastMsgId);
+        list.forEach(m => Room.pushDanmu(m, true));
+      } catch (e) { }
+    }, 3000);
+  },
+
+  /* ===== 直播感三件套：不许暂停 / 多机位轮播 / 飘心 ===== */
+  initLive() {
+    const v = document.getElementById('lvVideo');
+    if (v) {
+      // 直播不能暂停：任何方式导致的 pause 都立即续播
+      v.addEventListener('pause', () => { try { v.play(); } catch (e) {} });
+      v.addEventListener('contextmenu', e => e.preventDefault());   // 禁右键菜单
+      v.addEventListener('click', () => {});                        // 吃掉点击（不给暂停机会）
+      v.addEventListener('ended', () => Room.nextClip());           // 单段播完直接切下个机位
+      v.play().catch(() => {});
+    }
+    clearInterval(Room.rotateTimer);
+    // 每 12 秒切换一次"机位"（机位片各约 12.6 秒，播完也会自动切下一段）
+    Room.rotateTimer = setInterval(() => {
+      if (!document.hidden) Room.nextClip();
+    }, 12000);
+  },
+
+  nextClip() {
+    const v = document.getElementById('lvVideo');
+    if (!v) return;
+    const clips = Room.clips();
+    Room.clipIdx = (Room.clipIdx + 1) % clips.length;
+    v.style.opacity = '0';
+    setTimeout(() => {
+      v.src = clips[Room.clipIdx];
+      v.play().catch(() => {});
+      v.style.opacity = '1';
+    }, 460);
+  },
+
+  /* 右下角飘心：点赞触发 + 旁观观众自动飘 */
+  heart(n) {
+    const box = document.getElementById('hearts');
+    if (!box) return;
+    for (let k = 0; k < (n || 1); k++) {
+      setTimeout(() => {
+        const s = document.createElement('span');
+        s.className = 'hh';
+        s.textContent = ['❤', '💖', '🧡', '💗'][Math.floor(Math.random() * 4)];
+        s.style.left = Math.floor(Math.random() * 40) + 'px';
+        s.style.setProperty('--dx', (Math.random() * 60 - 24).toFixed(0) + 'px');
+        s.style.fontSize = (15 + Math.random() * 12).toFixed(0) + 'px';
+        box.appendChild(s);
+        setTimeout(() => s.remove(), 2500);
+        while (box.children.length > 24) box.removeChild(box.firstChild);
+      }, k * 160);
+    }
+  },
+
+  /* 主播讲解字幕轮播（数据来自购物袋里的真实商品） */
+  startPitch() {
+    const el = document.getElementById('pitch');
+    if (!el) return;
+    const g = (Room.data.goods || []);
+    const lines = g.map(x => '🔔 正在讲解：' + x.name + '  直播价 ¥' + Number(x.livePrice).toFixed(0));
+    lines.push('🎁 关注主播，抽整点免单', '⏰ 直播间专享价，下播恢复原价', '🚚 京东物流 隔日送达');
+    if (!lines.length) return;
+    let i = 0;
+    const show = () => {
+      el.style.opacity = '0';
+      setTimeout(() => {
+        el.textContent = lines[i % lines.length];
+        i++;
+        el.style.opacity = '1';
+      }, 500);
+    };
+    show();
+    clearInterval(Room.pitchTimer);
+    Room.pitchTimer = setInterval(() => { if (!document.hidden) show(); }, 6000);
+  },
+
+  /* 演示用：本地随机刷观众弹幕，让直播间"活"起来（真实弹幕靠上面的轮询） */
+  startSim() {
+    const pool = [
+      '主播这个还有货吗', '已下单 1 号链接', '这个价格太香了', '能不能上点优惠券',
+      '刚抢到一台！', '求讲讲售后', '这个和上一代比怎么样', '北京能次日达吗',
+      '颜色还有别的吗', '冲了冲了', '蹲一个讲解', '支持以旧换新吗',
+      '来晚了还有优惠吗', '发货快吗急用', '质量怎么样', '直播间比店里便宜多少',
+      '学生党买合适吗', '求翻牌！', '前排围观', '刚从购物袋拍的，快审核吧',
+      '这期直播干货好多', '主播声音好听', '已关注，蹲一个福利', '这个功能是真的吗'
+    ];
+    const gifts = ['小心心', '小红心', '粉丝团灯牌', '京东小狗', '能量棒'];
+    const nicks = ['小*鱼', 'jd***88', '阿*强', '一*一', 'm***o', '大*白', '橙*子', '路*人', '飞*扬', '青*柠'];
+    clearInterval(Room.simTimer);
+    if (Room.data.status !== 1) return;
+    Room.simTimer = setInterval(() => {
+      if (document.hidden) return;
+      const c = pool[Math.floor(Math.random() * pool.length)];
+      const n = nicks[Math.floor(Math.random() * nicks.length)];
+      if (Math.random() < 0.22) {
+        const g = gifts[Math.floor(Math.random() * gifts.length)];
+        Room.pushDanmu({ nickname: n, content: '送出了 ' + g + ' x' + (1 + Math.floor(Math.random() * 5)), type: 0 }, true);
+        Room.heart(2);
+      } else {
+        Room.pushDanmu({ nickname: n, content: c, type: 0 }, true);
+      }
+    }, 2800);
+
+    // 旁观观众自动飘心
+    clearInterval(Room.heartTimer);
+    Room.heartTimer = setInterval(() => {
+      if (!document.hidden) Room.heart(1 + Math.floor(Math.random() * 2));
+    }, 2400);
+
+    // 主播讲解字幕
+    Room.startPitch();
+
+    // 在线人数 / 累计观看实时波动
+    clearInterval(Room.onlineTimer);
+    Room.onlineTimer = setInterval(() => {
+      if (document.hidden) return;
+      const o = document.getElementById('c-online');
+      if (o && Room.data.status === 1) {
+        const cur = parseInt((o.textContent || '0').replace(/,/g, ''), 10) || 0;
+        const next = Math.max(666, cur + Math.floor(Math.random() * 13) - 4);
+        o.textContent = fmt.n(next);
+        const vd = document.getElementById('c-viewer');
+        if (vd) vd.textContent = fmt.n(next * 3 + 1200);
+      }
+    }, 5000);
+  },
+
+  async like() {
+    const btn = document.getElementById('likeBtn');
+    if (Room.liked) { Room.toast('已经点过赞啦'); return; }
+    if (!API.token()) { Room.toast('请先登录'); setTimeout(() => location.href = '/index.html#/pages/my/my', 900); return; }
+    try {
+      const c = await API.liveLike(Room.id);
+      Room.liked = true;
+      btn.classList.add('liked');
+      Room.setCounters(c);
+      Room.heart(6);
+      Room.toast('❤ 点赞成功');
+    } catch (e) { Room.toast(e.message); }
+  },
+
+  follow(el) {
+    if (!API.token()) { Room.toast('请先登录'); setTimeout(() => location.href = '/index.html#/pages/my/my', 900); return; }
+    el.classList.toggle('on');
+    el.textContent = el.classList.contains('on') ? '✓ 已关注' : '＋ 关注';
+    Room.toast(el.classList.contains('on') ? '关注成功，开播会提醒你' : '已取消关注');
+  },
+
+  async send() {
+    const inp = document.getElementById('chatInput');
+    const txt = (inp.value || '').trim();
+    if (!txt) return;
+    if (!API.token()) {
+      Room.toast('登录后才能发弹幕');
+      setTimeout(() => location.href = '/index.html#/pages/my/my', 900);
+      return;
+    }
+    try {
+      await API.liveSend(Room.id, txt);
+      inp.value = '';
+      // 不在本地即时显示：立即拉一次增量弹幕回显（含刚发的这条），
+      // 避免 3 秒轮询再把同一条从服务器拉回来造成重复显示
+      try {
+        const echo = await API.liveMessages(Room.id, Room.lastMsgId);
+        echo.forEach(m => Room.pushDanmu(m, true));
+      } catch (e2) { /* 拉取失败时轮询会在 3 秒内补上 */ }
+    } catch (e) { Room.toast(e.message); }
+  }
+};
+
+/* 每秒走倒计时 */
+setInterval(() => {
+  const chip = document.getElementById('cd-chip');
+  if (!chip || !Room.cdLeft) return;
+  Room.cdLeft -= 1000;
+  if (Room.cdLeft <= 0) { chip.textContent = Room.data.status === 1 ? '直播已结束' : '即将开播'; return; }
+  chip.textContent = (Room.data.status === 1 ? '⏱ ' : '🕐 ') + fmt.cd(Room.cdLeft) +
+    (Room.data.status === 1 ? ' 后下播' : ' 后开播');
+}, 1000);
+
+Room.init();
+</script>
+</body>
+</html>
